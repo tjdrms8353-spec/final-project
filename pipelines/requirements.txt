@@ -1,0 +1,3 @@
+# Install Airflow in a separate environment from the API.
+apache-airflow
+polars
