@@ -1,0 +1,3 @@
+# Install in a separate Linux/WSL/container environment with the matching
+# official Airflow constraints file when pipeline development starts.
+apache-airflow>=3,<4

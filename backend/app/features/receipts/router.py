@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from .service import get_status
 
-router = APIRouter(prefix="/receipts", tags=["receipts"])
+router = APIRouter(tags=["erp"])
 
 @router.get("/status")
 def status():

@@ -1,0 +1,3 @@
+PyMuPDF>=1.25,<2
+python-docx>=1.1,<2
+# Tesseract OCR is a separate system installation, not a pip dependency.

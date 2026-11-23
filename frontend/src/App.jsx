@@ -15,7 +15,7 @@ function Workspace() {
  const Page = pages[activeTab] || TrendPage;
  return <div className="min-h-screen bg-slate-50 text-slate-900">
    <TopNavAndToolbar />
-   <div role="note" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs text-amber-900">데모 모드 · 뉴스·시세·AI·OCR·로그인·자동화는 시뮬레이션입니다. 실제 API·DB에는 연결되지 않습니다.</div>
+   <div role="note" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs text-amber-900">뉴스 목록은 DB에 저장된 실제 기사입니다. 분석 미리보기·시세·AI·OCR·로그인·자동화는 데모이며 자동 실시간 갱신은 제공하지 않습니다.</div>
    <main className={activeTab === 'dashboard' ? '' : 'mx-auto max-w-[1440px] px-4 py-8 sm:px-6'}><Page /></main>
    <footer className="border-t border-slate-200 bg-white px-4 py-5 text-xs text-slate-600">
      <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-4"><span>DataPulse AI · AutoFlow 통합 워크스페이스</span>

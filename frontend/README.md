@@ -31,5 +31,5 @@ Google AI Studio의 React/TypeScript 화면을 기존 React/Vite 앱에 통합�
 ## API 상태
 
 가져온 화면은 브라우저 메모리 기반 데모입니다. 로그인/OAuth, 문서 분류, OCR, RPA, Airflow, TiDB 저장은 실제 API 호출이 아닙니다. 새로고침하면 데모 변경 내역이 초기화됩니다. Gemini API 키는 필요하지 않으며 클라이언트에 포함하지 않습니다.
-기존 /api → http://127.0.0.1:8001 개발 프록시와 VITE_API_BASE_URL 설정을 유지했습니다. 백엔드 업무 API 구현 후 services와 PlatformContext를 연결하세요.
+`/api` 요청은 개발 프록시를 통해 `http://127.0.0.1:8001`로 전달합니다. 대상 변경은 `frontend/.env`의 `DEV_API_TARGET`으로 설정합니다. 브라우저에서는 `/api/...` 상대 경로로 호출합니다. 백엔드 업무 API 구현 후 services와 PlatformContext를 연결하세요.
 이미지는 Vite import로 묶어 개발·배포 환경에서 동일하게 표시합니다.

@@ -13,3 +13,17 @@ data/*
 !data/.gitkeep
 models/*
 !models/.gitkeep
+.cache/
+.npm-cache/
+*.egg-info/
+.coverage
+htmlcov/
+uploads/
+tmp/
+*.parquet
+*.pt
+*.pth
+*.onnx
+*.safetensors
+*.joblib
+*.pkl
