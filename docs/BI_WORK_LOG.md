@@ -72,3 +72,11 @@
 - 반도체 외 업종 템플릿 (구조는 `INDUSTRIES`에 추가하면 확장)
 - 기존 상단 데모 RBAC·인증창은 데모 상태 그대로이며, BI 탭만 실제 인증 사용
 - 시장지표 수동 입력 API는 로그인 사용자 누구나 호출 가능 (전역 관리자 역할 도입 필요)
+
+## 8. 데모 버전 (2026-11-24)
+
+- 사용자 요청으로 GitHub 저장소 생성은 보류하고 Devin App(조직 내부 공개)으로 데모 배포
+- 실행: `FRONTEND_DIST`를 지정하면 FastAPI가 빌드된 React 화면을 함께 서비스 (포트 1개)
+- 데모 DB: 로컬 SQLite, `python -m app.features.bi.demo_seed`로 API를 통해 데모 기업·계정·ERP 샘플·환율·분석·결정 1건 생성
+- 뉴스: 기존 RSS 수집기로 한국경제·연합뉴스·BBC·동아일보·뉴시스 기사 271건 실제 수집해 근거로 연결
+- 데모 계정(비밀번호 `dayribbon-demo`): owner/approver/analyst/viewer `@demo.dayribbon.kr`. 화면 빌드 시 `VITE_DEMO_MODE=1`일 때만 데모 로그인 버튼 표시
