@@ -33,7 +33,7 @@ const NAV = [
     { id: 'simulation', label: '시나리오 시뮬레이션', icon: FlaskConical, page: SimulationPage },
   ] },
   { group: '데이터·관리', items: [
-    { id: 'data', label: '데이터 업로드', icon: Upload, page: DataPage },
+    { id: 'data', label: 'ERP 데이터 업로드', icon: Upload, page: DataPage },
     { id: 'members', label: '구성원·권한', icon: Users, page: MembersPage },
     { id: 'company', label: '기업 정보', icon: Building2, page: CompanyPage },
   ] },

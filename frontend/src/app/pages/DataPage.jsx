@@ -29,9 +29,17 @@ export default function DataPage() {
   }
 
   return <div className="space-y-6">
-    <PageHeader title="데이터 업로드" description="ERP가 없어도 매출·매입·지출·재고 장부를 CSV 또는 Excel(.xlsx)로 올리면 업종 KPI가 자동 계산됩니다. 최대 10MB · 5만 행, UTF-8·CP949 지원." />
+    <PageHeader title="ERP 데이터 업로드" description="ERP는 기업의 매출·매입·지출·재고를 기록하는 경영 관리 시스템입니다. ERP가 없어도 그 데이터를 CSV 또는 Excel(.xlsx)로 올리면 업종 KPI가 자동 계산됩니다. 최대 10MB · 5만 행, UTF-8·CP949 지원." />
     <div className="grid gap-6 xl:grid-cols-5">
       <div className="min-w-0 space-y-4 xl:col-span-3">
+        <Card title="처음이라면: 예시 데이터로 바로 체험하기" subtitle="예시 파일을 내려받아 그대로 업로드하면 KPI·분석 결과를 바로 볼 수 있습니다.">
+          <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-600">
+            <li>아래 예시 데이터(반도체 또는 자동차 부품)를 다운로드합니다.</li>
+            <li>파일을 이 페이지에 끌어다 놓거나 선택해 업로드합니다.</li>
+            <li>‘BI 대시보드’와 ‘AI 기회·위험 분석’에서 결과를 확인합니다.</li>
+          </ol>
+          <p className="mt-2 text-xs text-slate-500">주의: 예시 파일은 데모용 가상 데이터이며, 업로드하면 기존 데이터에 <b>추가</b>됩니다. 같은 파일을 다시 올리면 금액이 중복 집계되니, 체험 후에는 새 기업을 등록해 사용하는 것을 권장합니다.</p>
+        </Card>
         <label onDragOver={e => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)}
           onDrop={e => { e.preventDefault(); setDrag(false); upload(e.dataTransfer.files?.[0]); }}
           className={cx('flex flex-col items-center justify-center rounded-xl border-2 border-dashed bg-white px-6 py-12 text-center transition',
@@ -47,6 +55,7 @@ export default function DataPage() {
         <div className="flex flex-wrap gap-2 text-sm">
           <a className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 font-medium text-slate-700 hover:bg-slate-50" href="/api/bi/erp/template.csv"><Download className="h-4 w-4" />빈 양식 다운로드</a>
           <a className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 font-medium text-slate-700 hover:bg-slate-50" href="/samples/semiconductor_erp_sample.csv" download><FileSpreadsheet className="h-4 w-4" />반도체 샘플 데이터</a>
+          <a className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 font-medium text-slate-700 hover:bg-slate-50" href="/samples/auto_parts_erp_sample.csv" download><FileSpreadsheet className="h-4 w-4" />자동차 부품 샘플 데이터</a>
         </div>
         <Card title="업로드 이력" bodyClassName="p-0">
           {uploads.length ? <div className="overflow-x-auto"><table className="w-full text-sm">
