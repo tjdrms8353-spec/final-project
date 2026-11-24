@@ -80,3 +80,10 @@
 - 데모 DB: 로컬 SQLite, `python -m app.features.bi.demo_seed`로 API를 통해 데모 기업·계정·ERP 샘플·환율·분석·결정 1건 생성
 - 뉴스: 기존 RSS 수집기로 한국경제·연합뉴스·BBC·동아일보·뉴시스 기사 271건 실제 수집해 근거로 연결
 - 데모 계정(비밀번호 `dayribbon-demo`): owner/approver/analyst/viewer `@demo.dayribbon.kr`. 화면 빌드 시 `VITE_DEMO_MODE=1`일 때만 데모 로그인 버튼 표시
+
+## 프론트엔드 재구성 (데모 v3)
+
+- 상단 탭 구조를 좌측 사이드바 워크스페이스(`frontend/src/app/`)로 교체: 개요 → BI 대시보드 → 시장·뉴스 → AI 분석 → 결정·후속조치 → 시나리오, 데이터 업로드·구성원·기업 정보.
+- 기존 `BiPage`와 `components/bi/*` 기능은 새 페이지로 옮겼고, 기존 데모 화면(뉴스·SNS, AI 문서, 금융, OCR, 운영 콘솔, 기존 대시보드)은 사이드바 '기존 기능' 메뉴로 유지.
+- 검증: typecheck·build, 4개 권한 계정 로그인, 전 페이지 렌더링, 결정 기록·후속조치 상태 변경·시뮬레이션·업로드(복제 DB), 390px 모바일 레이아웃.
+- 알려진 제약: ERP 업로드는 추가(append) 방식이라 같은 파일을 다시 올리면 중복 집계됨.
