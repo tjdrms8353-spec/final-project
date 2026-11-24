@@ -62,9 +62,9 @@ export default function BiDashboard({ data, onRefresh }) {
           <ComposedChart data={chart}><CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
             <XAxis dataKey="period" fontSize={12} /><YAxis yAxisId="l" fontSize={12} unit="억" /><YAxis yAxisId="r" orientation="right" fontSize={12} unit="%" />
             <Tooltip formatter={(v, n) => n.includes('%') ? `${Number(v).toFixed(2)}%` : `${Number(v).toFixed(1)}억`} /><Legend />
-            <Bar yAxisId="l" dataKey="salesE" name="매출(억)" fill="#2563eb" /><Bar yAxisId="l" dataKey="purchaseE" name="매입(억)" fill="#f59e0b" />
-            <Bar yAxisId="l" dataKey="expenseE" name="지출(억)" fill="#94a3b8" />
-            <Line yAxisId="r" dataKey="gross_margin_pct" name="매출총이익률(%)" stroke="#16a34a" strokeWidth={2} />
+            <Bar isAnimationActive={false} yAxisId="l" dataKey="salesE" name="매출(억)" fill="#2563eb" /><Bar isAnimationActive={false} yAxisId="l" dataKey="purchaseE" name="매입(억)" fill="#f59e0b" />
+            <Bar isAnimationActive={false} yAxisId="l" dataKey="expenseE" name="지출(억)" fill="#94a3b8" />
+            <Line isAnimationActive={false} yAxisId="r" dataKey="gross_margin_pct" name="매출총이익률(%)" stroke="#16a34a" strokeWidth={2} />
           </ComposedChart></ResponsiveContainer></div> : <p className="text-sm text-slate-500">업로드된 ERP 데이터가 없습니다.</p>}
       </Card>
       <Card title="환율·금융지표" actions={<Button variant="secondary" onClick={collectFx}>환율 최신화</Button>}>
@@ -72,7 +72,7 @@ export default function BiDashboard({ data, onRefresh }) {
           {fxCodes.map(c => <option key={c}>{c}</option>)}</select>
         {fx?.series.length ? <>
           <div className="h-44"><ResponsiveContainer><LineChart data={fx.series}><XAxis dataKey="date" hide /><YAxis domain={['auto', 'auto']} fontSize={11} width={50} />
-            <Tooltip /><Line dataKey="value" name={fxCode} stroke="#7c3aed" dot={false} /></LineChart></ResponsiveContainer></div>
+            <Tooltip /><Line isAnimationActive={false} dataKey="value" name={fxCode} stroke="#7c3aed" dot={false} /></LineChart></ResponsiveContainer></div>
           {fx.change_30d && <p className="text-xs text-slate-600">30일 변동 {fx.change_30d.change_pct > 0 ? '+' : ''}{fx.change_30d.change_pct}% ({fx.change_30d.from_date} → {fx.change_30d.to_date}) · 출처: {fx.change_30d.source}</p>}
         </> : <p className="text-sm text-slate-500">저장된 지표가 없습니다. ‘환율 최신화’로 무료 ECB 기준환율을 가져올 수 있습니다.</p>}
         {fxMessage && <p className="mt-2 text-xs text-slate-600" role="status">{fxMessage}</p>}

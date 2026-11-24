@@ -30,7 +30,7 @@ export default function SimulationPanel({ company }) {
     {result && <div className="mt-4 grid gap-4 lg:grid-cols-2">
       <div className="h-60"><ResponsiveContainer><BarChart data={chart}><CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
         <XAxis dataKey="name" fontSize={12} /><YAxis unit="억" fontSize={12} /><Tooltip formatter={v => `${Number(v).toFixed(2)}억`} /><Legend />
-        <Bar dataKey="before" name={`기준 (${result.period})`} fill="#94a3b8" /><Bar dataKey="after" name="시나리오" fill="#2563eb" /></BarChart></ResponsiveContainer></div>
+        <Bar isAnimationActive={false} dataKey="before" name={`기준 (${result.period})`} fill="#94a3b8" /><Bar isAnimationActive={false} dataKey="after" name="시나리오" fill="#2563eb" /></BarChart></ResponsiveContainer></div>
       <div className="text-sm">
         <ul className="space-y-1">{Object.keys(NAMES).map(k => <li key={k}>{NAMES[k]}: {eok(result.before[k])} → <b>{eok(result.after[k])}</b>
           <span className={result.delta[k] >= 0 ? 'text-emerald-700' : 'text-red-700'}> ({result.delta[k] >= 0 ? '+' : ''}{eok(result.delta[k])})</span></li>)}</ul>
