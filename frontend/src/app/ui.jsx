@@ -112,5 +112,7 @@ export function Stat({ label, value, unit, previous, higherIsBetter, hint }) {
 export const Loading = ({ label = '불러오는 중...' }) => <div className="flex items-center gap-2 py-10 text-sm text-slate-500" role="status">
   <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-brand-600" />{label}</div>;
 
-export const dateKo = (v) => v ? new Date(v).toLocaleDateString('ko-KR') : '-';
-export const dateTimeKo = (v) => v ? new Date(v).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+// API timestamps without an offset are UTC.
+const toDate = (v) => new Date(typeof v === 'string' && /T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(v) ? `${v}Z` : v);
+export const dateKo = (v) => v ? toDate(v).toLocaleDateString('ko-KR') : '-';
+export const dateTimeKo = (v) => v ? toDate(v).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '-';

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
-  Archive, Building2, ClipboardCheck, Database, FileText, FlaskConical, Gauge, LayoutDashboard, LogOut, Menu,
-  Newspaper, Receipt, Server, Sparkles, TrendingUp, Upload, Users, X,
+  Archive, BookOpen, Building2, ClipboardCheck, Database, FileText, FlaskConical, Gauge, LayoutDashboard, LogOut, Menu,
+  Newspaper, Receipt, Server, ShieldCheck, Sparkles, TrendingUp, Upload, Users, X,
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { Badge, cx, Loading } from './ui';
@@ -15,6 +15,8 @@ import MarketPage from './pages/MarketPage';
 import DataPage from './pages/DataPage';
 import MembersPage from './pages/MembersPage';
 import CompanyPage, { CompanyForm } from './pages/CompanyPage';
+import ReportsPage from './pages/ReportsPage';
+import AuditPage from './pages/AuditPage';
 import LegacyPage, { LEGACY_MODULES } from './pages/LegacyPage';
 
 const LEGACY_ICONS = { trends: Newspaper, documents: FileText, finance: TrendingUp, receipts: Receipt, dataops: Server, classic: Archive };
@@ -34,6 +36,10 @@ const NAV = [
     { id: 'data', label: '데이터 업로드', icon: Upload, page: DataPage },
     { id: 'members', label: '구성원·권한', icon: Users, page: MembersPage },
     { id: 'company', label: '기업 정보', icon: Building2, page: CompanyPage },
+  ] },
+  { group: '보고·감사', items: [
+    { id: 'reports', label: '주간·월간 보고서', icon: BookOpen, page: ReportsPage },
+    { id: 'audit', label: '감사 추적 로그', icon: ShieldCheck, page: AuditPage },
   ] },
   { group: '기존 기능 (데모 화면)', items: LEGACY_MODULES.map(m => ({ id: `legacy/${m.id}`, label: m.label, icon: LEGACY_ICONS[m.id] || Database, page: LegacyPage, legacy: true })) },
 ];
@@ -102,15 +108,15 @@ export default function AppShell() {
   else content = <Page params={params} />;
 
   return <div className="min-h-screen bg-canvas lg:pl-64">
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-white lg:block"><Sidebar current={item.id} onNavigate={close} /></aside>
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-white lg:block print:hidden"><Sidebar current={item.id} onNavigate={close} /></aside>
     {open && <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="메뉴">
       <button type="button" className="absolute inset-0 bg-slate-900/40" onClick={close} aria-label="메뉴 닫기" />
-      <aside className="relative h-full w-72 max-w-[85vw] bg-white shadow-xl">
+      <aside className="relative h-full w-72 max-w-[85vw] bg-white shadow-xl print:hidden">
         <button type="button" onClick={close} className="absolute right-3 top-4 rounded-md p-1.5 text-slate-500 hover:bg-slate-100" aria-label="메뉴 닫기"><X className="h-5 w-5" /></button>
         <Sidebar current={item.id} onNavigate={close} />
       </aside>
     </div>}
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-6">
+    <header className="sticky top-0 z-20 flex h-14 print:hidden items-center gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-6">
       <button type="button" className="rounded-md p-1.5 text-slate-600 hover:bg-slate-100 lg:hidden" onClick={() => setOpen(true)} aria-label="메뉴 열기"><Menu className="h-5 w-5" /></button>
       <p className="min-w-0 flex-1 truncate text-sm text-slate-500">
         {ws.company && !item.legacy ? <><span className="font-medium text-slate-900">{ws.company.name}</span><span className="mx-1.5">/</span></> : null}{item.label}

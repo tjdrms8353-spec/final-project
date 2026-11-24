@@ -65,13 +65,13 @@ export function WorkspaceProvider({ user, onLogout, children }) {
   const value = useMemo(() => {
     const role = company?.role;
     return {
-      user, onLogout, companies, company, ...data, loading, error, setError, reload, loadCompanies,
+      user, onLogout, companies, company, ...data, loading, error, setError, reload, loadCompanies, version,
       selectCompany: (id) => { localStorage.setItem(COMPANY_KEY, String(id)); setData({ dashboard: null, members: [], run: null, runs: [], decisions: [], actions: [] }); setCompanyId(id); },
       can: { write: ['OWNER', 'APPROVER', 'ANALYST'].includes(role), decide: ['OWNER', 'APPROVER'].includes(role), admin: role === 'OWNER' },
       pendingCount: data.run?.findings.filter(f => f.status === 'PENDING').length || 0,
       openActions: data.actions.filter(a => a.status !== 'DONE').length,
     };
-  }, [user, onLogout, companies, company, data, loading, error, reload, loadCompanies]);
+  }, [user, onLogout, companies, company, data, loading, error, reload, loadCompanies, version]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

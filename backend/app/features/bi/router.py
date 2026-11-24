@@ -4,19 +4,19 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Path, Query, UploadFile
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 
-from . import market
+from . import market, reports
 from .analysis import company_records, related_news
 from .analysis import run_analysis as execute_analysis
 from .erp_import import TEMPLATE_CSV, LedgerFormatError, parse_ledger
 from .industries import INDUSTRIES, get_template, template_dict
 from .metrics import monthly_summary
-from .models import (AnalysisFinding, AnalysisRun, BiUser, Company, CompanyMember, Decision, ErpRecord,
+from .models import (AnalysisFinding, AnalysisRun, AuditLog, BiUser, Company, CompanyMember, Decision, ErpRecord,
                      ErpUpload, FollowUpAction, MarketIndicator)
 from .security import create_token, hash_password, read_token, verify_password
 from .simulation import simulate
@@ -31,6 +31,13 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 def now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def audit(db: Session, company_id: int, user: BiUser, action: str, entity_type: str,
+          entity_id: int | None = None, detail: dict | None = None) -> None:
+    """Append one row to the company audit trail (committed with the caller's transaction)."""
+    db.add(AuditLog(company_id=company_id, user_id=user.id, action=action, entity_type=entity_type,
+                    entity_id=entity_id, detail=detail or {}, created_at=now()))
 
 
 def bi_db():
@@ -149,6 +156,8 @@ def create_company(body: CompanyIn, db: Db, user: User):
     db.add(company)
     db.flush()
     db.add(CompanyMember(company_id=company.id, user_id=user.id, role="OWNER"))
+    audit(db, company.id, user, "COMPANY_CREATED", "company", company.id,
+          {"name": company.name, "industry": company.industry})
     db.commit()
     return company_out(company, "OWNER")
 
@@ -190,6 +199,8 @@ def upsert_member(company_id: CompanyId, body: MemberIn, db: Db, user: User):
         member.role = body.role
     else:
         db.add(CompanyMember(company_id=company_id, user_id=target.id, role=body.role))
+    audit(db, company_id, user, "MEMBER_UPDATED", "member", target.id,
+          {"email": target.email, "name": target.name, "role": body.role})
     db.commit()
     return {**user_out(target), "role": body.role}
 
@@ -218,6 +229,8 @@ async def upload_erp(company_id: CompanyId, db: Db, user: User, file: UploadFile
     db.add(upload)
     db.flush()
     db.add_all([ErpRecord(company_id=company_id, upload_id=upload.id, **row) for row in parsed.rows])
+    audit(db, company_id, user, "ERP_UPLOAD", "erp_upload", upload.id,
+          {"file_name": upload.file_name, "accepted": len(parsed.rows), "rejected": parsed.rejected})
     db.commit()
     return {"upload_id": upload.id, "accepted": len(parsed.rows), "rejected": parsed.rejected, "errors": parsed.errors}
 
@@ -301,6 +314,9 @@ def create_analysis(company_id: CompanyId, db: Db, user: User):
     if not db.scalar(select(ErpRecord.id).where(ErpRecord.company_id == company_id).limit(1)):
         raise HTTPException(status_code=422, detail="분석할 ERP 데이터가 없습니다. 먼저 CSV/Excel을 업로드해 주세요.")
     run = execute_analysis(db, company, user.id)
+    findings_count = len(db.scalars(select(AnalysisFinding.id).where(AnalysisFinding.run_id == run.id)).all())
+    audit(db, company_id, user, "ANALYSIS_RUN", "analysis_run", run.id,
+          {"period": run.period, "findings": findings_count, "narrative_source": run.narrative_source})
     db.commit()
     return run_out(run, db.scalars(select(AnalysisFinding).where(AnalysisFinding.run_id == run.id)).all())
 
@@ -352,6 +368,9 @@ def decide(company_id: CompanyId, finding_id: Annotated[int, Path(ge=1)], body: 
         action = FollowUpAction(decision_id=decision.id, company_id=company_id, title=body.follow_up.strip(),
                                 assignee_id=body.assignee_id, due_date=body.due_date, status="OPEN", updated_at=now())
         db.add(action)
+    audit(db, company_id, user, "DECISION", "finding", finding_id,
+          {"status": body.status, "reason": body.reason.strip()[:300], "assignee_id": body.assignee_id,
+           "follow_up": (body.follow_up or "").strip()[:300] or None})
     db.commit()
     return {"id": decision.id, "status": decision.status, "finding_status": finding.status,
             "follow_up_id": action.id if action else None}
@@ -389,7 +408,10 @@ def update_action(company_id: CompanyId, action_id: Annotated[int, Path(ge=1)], 
     action = db.get(FollowUpAction, action_id)
     if action is None or action.company_id != company_id:
         raise HTTPException(status_code=404, detail="후속 조치를 찾을 수 없습니다.")
+    previous = action.status
     action.status, action.updated_at = body.status, now()
+    audit(db, company_id, user, "ACTION_UPDATE", "follow_up_action", action.id,
+          {"title": action.title, "from": previous, "to": body.status})
     db.commit()
     return {"id": action.id, "status": action.status}
 
@@ -408,4 +430,51 @@ def run_simulation(company_id: CompanyId, body: SimulationIn, db: Db, user: User
     monthly = monthly_summary(company_records(db, company_id))
     if not monthly:
         raise HTTPException(status_code=422, detail="시뮬레이션 기준이 될 ERP 데이터가 없습니다.")
+    audit(db, company_id, user, "SIMULATION_RUN", "simulation", None, dict(body.model_dump()))
+    db.commit()
     return simulate(monthly[-1], **body.model_dump())
+
+
+# ---------- reports & audit trail ----------
+@router.get("/companies/{company_id}/reports")
+def get_report(company_id: CompanyId, db: Db, user: User,
+               kind: Literal["weekly", "monthly"] = "monthly",
+               month: Annotated[str | None, Query(max_length=7)] = None,
+               anchor: date | None = None):
+    company, _ = membership(db, company_id, user)
+    try:
+        if kind == "monthly":
+            if month:
+                year, mon = (int(part) for part in month.split("-"))
+                if not 1 <= mon <= 12:
+                    raise ValueError
+                target = date(year, mon, 1)
+            else:
+                target = reports.today_kst().replace(day=1)
+        else:
+            target = anchor or reports.today_kst()
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=422, detail="기간 형식이 올바르지 않습니다. (month=YYYY-MM, anchor=YYYY-MM-DD)") from None
+    report = reports.build_report(db, company, kind, target, user)
+    audit(db, company_id, user, "REPORT_GENERATED", "report", None, {"kind": kind, "period": report["period"]})
+    db.commit()
+    return report
+
+
+@router.get("/companies/{company_id}/audit-logs")
+def list_audit_logs(company_id: CompanyId, db: Db, user: User,
+                    action: Annotated[str | None, Query(max_length=30)] = None,
+                    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+                    offset: Annotated[int, Query(ge=0)] = 0):
+    membership(db, company_id, user)
+    stmt = select(AuditLog).where(AuditLog.company_id == company_id)
+    if action:
+        stmt = stmt.where(AuditLog.action == action)
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    rows = db.scalars(stmt.order_by(AuditLog.id.desc()).limit(limit).offset(offset)).all()
+    names = dict(db.execute(select(BiUser.id, BiUser.name).where(
+        BiUser.id.in_({r.user_id for r in rows if r.user_id} or {0}))).all())
+    return {"total": total, "items": [{"id": r.id, "action": r.action, "entity_type": r.entity_type,
+                                       "entity_id": r.entity_id, "detail": r.detail,
+                                       "user": names.get(r.user_id), "created_at": r.created_at.isoformat()}
+                                      for r in rows]}

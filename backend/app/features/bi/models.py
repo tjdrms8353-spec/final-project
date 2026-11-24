@@ -132,7 +132,22 @@ class FollowUpAction(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime)
 
 
+class AuditLog(Base):
+    """Append-only trail of who did what in a company workspace."""
+    __tablename__ = "bi_audit_logs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("bi_companies.id"))
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("bi_users.id"))
+    # COMPANY_CREATED | MEMBER_UPDATED | ERP_UPLOAD | ANALYSIS_RUN | DECISION | ACTION_UPDATE | SIMULATION_RUN | REPORT_GENERATED
+    action: Mapped[str] = mapped_column(String(30))
+    entity_type: Mapped[str] = mapped_column(String(30))
+    entity_id: Mapped[int | None] = mapped_column(Integer)
+    detail: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+    __table_args__ = (Index("ix_bi_audit_company_time", "company_id", "created_at"),)
+
+
 BI_TABLES = [m.__table__ for m in (
     BiUser, Company, CompanyMember, ErpUpload, ErpRecord, MarketIndicator,
-    AnalysisRun, AnalysisFinding, Decision, FollowUpAction,
+    AnalysisRun, AnalysisFinding, Decision, FollowUpAction, AuditLog,
 )]
