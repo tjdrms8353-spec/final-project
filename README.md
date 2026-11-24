@@ -1,4 +1,6 @@
-# Final Project
+# dayribbon
+
+중소기업 맞춤형 AI BI·의사결정 지원 플랫폼 (기존 `final-project` 이전·확장). BI 작업 기록: [docs/BI_WORK_LOG.md](docs/BI_WORK_LOG.md)
 
 <!-- 고정: "실행 방법" 섹션은 항상 이 파일의 맨 위에 둔다. 작업 기록은 아래 "작업 기록"에 날짜순으로 추가한다. (AGENTS.md 규칙) -->
 
@@ -42,6 +44,8 @@ Airflow(WSL Ubuntu) 최초 설치 방법은 아래 [Airflow 예약 수집](#airf
 | 저장된 뉴스 | http://127.0.0.1:8001/api/news?limit=5 |
 | 출처별 수집 공백 | http://127.0.0.1:8001/api/news/coverage?hours=24 (`gaps`가 비어 있으면 공백 없음) |
 | Airflow 수집 상태 | WSL: `wsl -d Ubuntu --exec curl -s http://localhost:8080/api/v2/monitor/health` |
+| 기업 BI 화면 | http://localhost:5175 → 기업 BI 탭(기본) → 회원가입 → 기업 등록 → `frontend/public/samples/semiconductor_erp_sample.csv` 업로드 → 대시보드·분석·결정 |
+| BI API 문서 | http://127.0.0.1:8001/docs → `/api/bi/*` |
 | 뉴스 화면 | http://localhost:5175 → 뉴스·SNS 탭 |
 | BBC 번역 | 화면의 **출처 이름**에 `BBC News`를 정확히 입력하고 **검색** 클릭(`bbc`만 입력하면 0건) → 한국어 제목과 "기계 번역 · 원문" 표시. 상태 확인(dry-run, 외부 요청 없음): `$env:PYTHONPATH='backend;.'; .\.venv\Scripts\python -m pipelines.jobs.translate_news`. 수동 `--execute`는 DeepL 요청·DB 저장을 수행하므로 별도 확인 후 실행 |
 
@@ -102,6 +106,10 @@ cd frontend; npm.cmd run typecheck; npm.cmd run build; cd ..              # 프�
 - DeepL 429·5xx 오류에 최대 2회 지수 백오프(1초·2초), 400·456은 재시도하지 않도록 보완. 관련 테스트 backend 36·pipelines 5, Python compileall, 프론트 typecheck·build 통과(번들 크기 경고). 수동 DeepL 요청 없음 (검증)
 - UTC 08:35 Airflow 예약 실행 success: BBC 34건 모두 제목 번역, 요약이 있는 21건 모두 요약 번역, 미번역 0건. `source=BBC News`로 API 조회 34건·최신 5건 번역 확인(`bbc`는 정확히 일치하지 않아 0건). 브라우저 화면 직접 확인은 대기 (검증)
 
+### 2026-11-24 (Devin · dayribbon)
+- 서비스명을 `dayribbon`으로 변경, 기업 맞춤 BI 백엔드(`/api/bi`)·화면(기업 BI 탭) 추가. 마이그레이션 `20261124_07` 작성(TiDB 적용은 미실행)
+- 테스트: backend 112개, pipelines 60개, frontend typecheck·build 통과 (검증). 상세: [docs/BI_WORK_LOG.md](docs/BI_WORK_LOG.md)
+
 ---
 
 ## 상세 참고
@@ -121,7 +129,7 @@ cd frontend; npm.cmd run typecheck; npm.cmd run build; cd ..              # 프�
 ### 구조와 구현 범위
 
 - frontend/: React 시작점 및 기존 화면(public/legacy)
-- backend/app/features/: trends(성근), finance(종범), receipts(승호)
+- backend/app/features/: trends(성근), finance(종범), receipts(승호), bi(dayribbon 기업 BI·분석·의사결정)
 - backend/app/core, db, models, schemas: 공통 설정·DB·모델·스키마
 - pipelines/: Airflow DAG, ETL 작업, 테스트(별도 Python 환경)
 - models/, data/: 로컬 모델·데이터 저장 위치

@@ -43,7 +43,7 @@ export const AuthModal: React.FC = () => {
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 id="auth-modal-title" className="font-display text-base font-semibold text-slate-900">
-            {currentUser ? '계정 세션 및 권한 정보' : 'DataPulse AI 인증'}
+            {currentUser ? '계정 세션 및 권한 정보' : 'dayribbon 인증 (데모)'}
           </h2>
           <button
             type="button"

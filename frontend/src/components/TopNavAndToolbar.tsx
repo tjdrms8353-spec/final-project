@@ -6,6 +6,7 @@ import { AppTab, MarketRegime, UserRole } from '../types/platform';
 import { ResilientImage } from './ResilientImage';
 
 const NAV_ITEMS: { id: AppTab; label: string }[] = [
+  { id: 'bi', label: '기업 BI' },
   { id: 'dashboard', label: '대시보드' },
   { id: 'news-sns', label: '뉴스·SNS' },
   { id: 'doc-ai', label: 'AI 문서' },
@@ -49,10 +50,10 @@ export const TopNavAndToolbar: React.FC = () => {
         {/* Zone 1: Single text element wordmark */}
         <button
           type="button"
-          onClick={() => setActiveTab('news-sns')}
+          onClick={() => setActiveTab('bi')}
           className="font-display text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded"
         >
-          DataPulse AI
+          dayribbon
         </button>
 
         {/* Workspace navigation */}

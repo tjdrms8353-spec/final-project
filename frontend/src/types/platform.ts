@@ -2,7 +2,7 @@ export type UserRole = 'GUEST' | 'ANALYST' | 'DATAOPS' | 'ADMIN';
 
 export type AuthProvider = 'EMAIL' | 'KAKAO' | 'GOOGLE';
 
-export type AppTab = 'dashboard' | 'news-sns' | 'doc-ai' | 'finance' | 'receipt-ocr' | 'dataops';
+export type AppTab = 'bi' | 'dashboard' | 'news-sns' | 'doc-ai' | 'finance' | 'receipt-ocr' | 'dataops';
 
 export type MarketRegime = 'BULL_MOMENTUM' | 'REGULATORY_ALERT' | 'MACRO_TIGHTENING';
 

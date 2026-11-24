@@ -127,7 +127,7 @@ function fullDateTime(): string {
 }
 
 export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeTab, setActiveTab] = useState<AppTab>('news-sns');
+  const [activeTab, setActiveTab] = useState<AppTab>('bi');
   const [users, setUsers] = useState<UserAccount[]>(INITIAL_USERS);
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(INITIAL_USERS[0]);
   const [authModalOpen, setAuthModalOpen] = useState(false);
