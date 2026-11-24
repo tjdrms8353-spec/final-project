@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     deepl_api_key: SecretStr = SecretStr("")
     # Optional local/dev override, e.g. sqlite:///data/dayribbon.db. Empty uses TiDB settings.
     database_url: str = ""
+    frontend_dist: str = ""
     # Signs dayribbon BI login tokens. Must be set to a long random value in production.
     auth_secret: SecretStr = SecretStr("")
     auth_token_hours: int = 12

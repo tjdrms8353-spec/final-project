@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.features.trends.router import router as trends_router
@@ -26,3 +29,6 @@ app.include_router(bi_router, prefix="/api/bi")
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+if settings.frontend_dist and Path(settings.frontend_dist).is_dir():
+    app.mount("/", StaticFiles(directory=settings.frontend_dist, html=True), name="frontend")
