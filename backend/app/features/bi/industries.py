@@ -31,30 +31,51 @@ COMMON_KPIS = (
     KpiDefinition("operating_profit", "영업이익(추정)", "KRW", "매출 - 매입 - 지출"),
 )
 
+# KPIs for import-dependent manufacturing (semiconductors, auto parts).
+IMPORT_KPIS = COMMON_KPIS + (
+    KpiDefinition("purchase_ratio_pct", "원재료 매입 비중", "%", "매입(purchase) / 매출", higher_is_better=False),
+    KpiDefinition("inventory_days", "재고 보유일수", "일", "월말 재고금액 / 월 매입 × 30", higher_is_better=False),
+    KpiDefinition("fx_purchase_share_pct", "외화 매입 비중", "%", "한국 외 거래국 매입 / 전체 매입", higher_is_better=False),
+    KpiDefinition("export_share_pct", "수출 매출 비중", "%", "한국 외 거래국 매출 / 전체 매출"),
+)
+
+FX_THRESHOLDS = {
+    "sales_drop_pct": -5.0,
+    "sales_growth_pct": 5.0,
+    "margin_drop_pp": -3.0,
+    "inventory_days_high": 60.0,
+    "fx_move_pct": 3.0,
+    "fx_purchase_share_high": 40.0,
+    # Profile-based FX-sensitivity scenario alerts are more sensitive than confirmed-risk alerts.
+    "fx_scenario_pct": 1.5,
+}
+
 INDUSTRIES: dict[str, IndustryTemplate] = {
     "semiconductor": IndustryTemplate(
         code="semiconductor",
         label="반도체 제조",
-        kpis=COMMON_KPIS + (
-            KpiDefinition("purchase_ratio_pct", "원재료 매입 비중", "%", "매입(purchase) / 매출", higher_is_better=False),
-            KpiDefinition("inventory_days", "재고 보유일수", "일", "월말 재고금액 / 월 매입 × 30", higher_is_better=False),
-            KpiDefinition("fx_purchase_share_pct", "외화 매입 비중", "%", "한국 외 거래국 매입 / 전체 매입", higher_is_better=False),
-            KpiDefinition("export_share_pct", "수출 매출 비중", "%", "한국 외 거래국 매출 / 전체 매출"),
-        ),
+        kpis=IMPORT_KPIS,
         news_keywords=("반도체", "메모리", "HBM", "파운드리", "D램", "낸드", "수출규제", "semiconductor", "chip"),
-        market_indicators=("USD/KRW", "JPY/KRW", "CNY/KRW", "KR_BASE_RATE"),
-        thresholds={
-            "sales_drop_pct": -5.0,
-            "sales_growth_pct": 5.0,
-            "margin_drop_pp": -3.0,
-            "inventory_days_high": 60.0,
-            "fx_move_pct": 3.0,
-            "fx_purchase_share_high": 40.0,
-        },
+        market_indicators=("USD/KRW", "JPY/KRW", "CNY/KRW", "KR_BASE_RATE", "US_10Y_YIELD", "WTI_OIL"),
+        thresholds=FX_THRESHOLDS,
+    ),
+    "auto_parts": IndustryTemplate(
+        code="auto_parts",
+        label="자동차 부품 제조",
+        kpis=IMPORT_KPIS,
+        news_keywords=("자동차 부품", "완성차", "전기차", "EV", "배터리", "알루미늄", "부품", "자동차", "자동차산업"),
+        market_indicators=("USD/KRW", "JPY/KRW", "EUR/KRW", "US_10Y_YIELD", "WTI_OIL"),
+        thresholds=FX_THRESHOLDS,
     ),
 }
 
 DEFAULT_INDUSTRY = "semiconductor"
+
+# Codes supported by market.collect_macro (Yahoo Finance public chart endpoint, no API key).
+MACRO_INDICATOR_LABELS = {
+    "US_10Y_YIELD": "미국 10년물 국채 금리(%)",
+    "WTI_OIL": "WTI 원유 선물(USD/배럴)",
+}
 
 
 def get_template(code: str) -> IndustryTemplate:

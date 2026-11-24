@@ -179,6 +179,34 @@ def build_findings(company: Company, rows: list[dict], fx: dict, news: dict, sou
                 "recommendation": "원재료 선구매 또는 장기 계약 검토",
             })
 
+    annual_import = getattr(company, "annual_import_krw", None)
+    scenario_pct = t.get("fx_scenario_pct", t["fx_move_pct"])
+    if annual_import and usd and abs(usd["change_pct"]) >= scenario_pct:
+        rising = usd["change_pct"] > 0
+        impact = round(annual_import * usd["change_pct"] / 100)
+        fx_ev = {"type": "market", "title": f"USD/KRW {usd['from_value']:.2f} → {usd['to_value']:.2f}",
+                 "source": usd["source"], "url": usd["source_url"], "date": usd["to_date"]}
+        profile_ev = {"type": "company", "title": "기업 정보 — 연간 수입 규모", "source": "기업 등록 정보"}
+        findings.append({
+            "kind": "risk" if rising else "opportunity",
+            "severity": "high" if abs(usd["change_pct"]) >= t["fx_move_pct"] * 2 else "medium",
+            "title": (f"환율 {usd['change_pct']:+.1f}% {'상승' if rising else '하락'} 시 "
+                      f"연간 수입 비용 약 {_fmt(abs(impact), 'KRW')} {'증가' if rising else '감소'} 시나리오"),
+            "facts": [
+                _fact("USD/KRW 변동률", usd["change_pct"], "%", usd["source"], f"{usd['from_date']}~{usd['to_date']}"),
+                _fact("연간 수입 규모(기업 입력)", annual_import, "KRW", "기업 등록 정보", "연간"),
+                _fact("환율 변동 단순 적용 시 영향", impact, "KRW", "연간 수입 × 환율 변동률 계산", "시나리오"),
+            ],
+            "inference": ("입력하신 연간 수입 규모에 최근 환율 변동률을 그대로 적용한 단순 시나리오입니다. "
+                          + ("외화 결제 비중이 높을수록 실제 원가 부담은 더 커질 수 있습니다." if rising else
+                             "수입 원가 부담이 줄어들 여지가 있습니다.")),
+            "evidence": [fx_ev, profile_ev, erp],
+            "uncertainty": "환헤지 계약, 결제 시점, 수입 통화(엔·위안 등) 구성은 반영되지 않은 단순 계산입니다.",
+            "review_points": ["외화 결제 예정 금액 확인", "환헤지 비율 점검", "수입 계약 통화 구성 확인"],
+            "recommendation": ("선물환 등 환헤지 비율 확대 및 원자재 가격 재협상 검토" if rising
+                               else "수입 물량 확대 또는 선구매 검토"),
+        })
+
     trend = sales_trend(rows)
     if trend and trend["r2"] >= 0.5 and abs(trend["slope_per_month"]) > 0:
         up = trend["slope_per_month"] > 0

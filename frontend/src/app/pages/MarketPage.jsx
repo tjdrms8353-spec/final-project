@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ExternalLink, Search } from 'lucide-react';
 import { Line, LineChart, ResponsiveContainer } from 'recharts';
 import { request } from '../../services/api';
-import { Button, Card, CHART, cx, dateTimeKo, Empty, Loading, PageHeader } from '../ui';
+import { Button, Card, CHART, cx, dateTimeKo, Empty, indicatorLabel, Loading, PageHeader } from '../ui';
 import { useWorkspace } from '../workspace';
 
 const PAGE = 10;
@@ -47,12 +47,12 @@ export default function MarketPage() {
   if (!dashboard) return <Loading />;
   const indicators = Object.entries(dashboard.indicators);
   return <div className="space-y-6">
-    <PageHeader title="시장·뉴스" description={`${company.name}의 관심 지표와 관련 산업 뉴스입니다. 환율은 무료 ECB 기준환율(Frankfurter API)을 사용합니다.`} />
+    <PageHeader title="시장·뉴스" description={`${company.name}의 관심 지표와 관련 산업 뉴스입니다. 환율은 ECB 기준환율, 금리·유가는 Yahoo Finance 무료 데이터를 사용합니다.`} />
     <section aria-label="관심 금융지표" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {indicators.map(([code, ind]) => {
         const last = ind.series.at(-1); const ch = ind.change_30d;
         return <div key={code} className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-medium text-slate-500">{code}</p>
+          <p className="text-xs font-medium text-slate-500">{indicatorLabel(code)} <span className="text-slate-400">({code})</span></p>
           {last ? <>
             <div className="mt-1 flex items-end justify-between gap-2">
               <p className="text-xl font-bold tabular-nums text-slate-900">{last.value.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}</p>

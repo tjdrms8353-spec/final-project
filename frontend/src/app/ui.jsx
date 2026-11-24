@@ -116,3 +116,9 @@ export const Loading = ({ label = '불러오는 중...' }) => <div className="fl
 const toDate = (v) => new Date(typeof v === 'string' && /T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(v) ? `${v}Z` : v);
 export const dateKo = (v) => v ? toDate(v).toLocaleDateString('ko-KR') : '-';
 export const dateTimeKo = (v) => v ? toDate(v).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+
+const INDICATOR_LABELS = {
+  'USD/KRW': '원/달러 환율', 'JPY/KRW': '엔/원 환율', 'CNY/KRW': '위안/원 환율', 'EUR/KRW': '유로/원 환율',
+  US_10Y_YIELD: '미국 10년물 금리', WTI_OIL: 'WTI 원유', KR_BASE_RATE: '한국 기준금리',
+};
+export const indicatorLabel = (code) => INDICATOR_LABELS[code] || code;

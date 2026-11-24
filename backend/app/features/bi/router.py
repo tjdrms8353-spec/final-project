@@ -127,6 +127,7 @@ class CompanyIn(BaseModel):
     interest_industries: list[str] = Field(default_factory=list, max_length=20)
     trade_countries: list[str] = Field(default_factory=list, max_length=30)
     interest_indicators: list[str] = Field(default_factory=list, max_length=20)
+    annual_import_krw: float | None = Field(default=None, ge=0, le=1e13)
 
 
 def company_out(company: Company, role: str) -> dict:
@@ -135,6 +136,7 @@ def company_out(company: Company, role: str) -> dict:
         "industry_label": get_template(company.industry).label, "main_products": company.main_products,
         "interest_industries": company.interest_industries, "trade_countries": company.trade_countries,
         "interest_indicators": company.interest_indicators, "role": role,
+        "annual_import_krw": company.annual_import_krw,
     }
 
 
@@ -151,6 +153,7 @@ def create_company(body: CompanyIn, db: Db, user: User):
         name=body.name.strip(), industry=body.industry, main_products=_clean(body.main_products),
         interest_industries=_clean(body.interest_industries), trade_countries=_clean(body.trade_countries),
         interest_indicators=_clean(body.interest_indicators) or list(template.market_indicators),
+        annual_import_krw=body.annual_import_krw,
         created_by=user.id, created_at=now(),
     )
     db.add(company)
@@ -173,6 +176,25 @@ def list_companies(db: Db, user: User):
 def get_company(company_id: CompanyId, db: Db, user: User):
     company, role = membership(db, company_id, user)
     return company_out(company, role)
+
+
+@router.put("/companies/{company_id}")
+def update_company(company_id: CompanyId, body: CompanyIn, db: Db, user: User):
+    company, _ = membership(db, company_id, user, ("OWNER",))
+    if body.industry not in INDUSTRIES:
+        raise HTTPException(status_code=422, detail=f"지원 업종: {', '.join(INDUSTRIES)}")
+    template = INDUSTRIES[body.industry]
+    company.name = body.name.strip()
+    company.industry = body.industry
+    company.main_products = _clean(body.main_products)
+    company.interest_industries = _clean(body.interest_industries)
+    company.trade_countries = _clean(body.trade_countries)
+    company.interest_indicators = _clean(body.interest_indicators) or list(template.market_indicators)
+    company.annual_import_krw = body.annual_import_krw
+    audit(db, company_id, user, "COMPANY_UPDATED", "company", company.id,
+          {"name": company.name, "industry": company.industry})
+    db.commit()
+    return company_out(company, "OWNER")
 
 
 class MemberIn(BaseModel):
@@ -259,6 +281,17 @@ def collect_fx(db: Db, user: User, days: Annotated[int, Query(ge=7, le=365)] = 1
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=502, detail=f"환율 API 요청 실패: {type(exc).__name__}") from None
+    db.commit()
+    return result
+
+
+@router.post("/market/macro/collect")
+def collect_macro(db: Db, user: User, days: Annotated[int, Query(ge=30, le=365)] = 180):
+    try:
+        result = market.collect_macro(db, days=days)
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=502, detail=f"매크로 API 요청 실패: {type(exc).__name__}") from None
     db.commit()
     return result
 

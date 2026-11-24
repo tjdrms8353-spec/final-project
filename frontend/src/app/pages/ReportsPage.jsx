@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FileText, Printer, RefreshCw } from 'lucide-react';
 import { bi, won } from '../../services/biApi';
-import { Alert, Badge, Button, cx, dateKo, dateTimeKo, Empty, Loading, PageHeader } from '../ui';
+import { Alert, Badge, Button, cx, dateKo, dateTimeKo, Empty, indicatorLabel, Loading, PageHeader } from '../ui';
 import { useWorkspace } from '../workspace';
 
 const kst = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
@@ -113,7 +113,7 @@ function ReportDocument({ r }) {
 
       <Section n={++n} title="시장 지표">
         {r.indicators.length ? <table className="w-full max-w-lg"><thead><tr><Th>지표</Th><Th right>최근 값</Th><Th right>30일 변동</Th><Th>기준일</Th></tr></thead>
-          <tbody>{r.indicators.map(i => <tr key={i.code}><Td>{i.code}</Td><Td right>{i.latest_value?.toLocaleString('ko-KR', { maximumFractionDigits: 2 }) ?? '-'}</Td>
+          <tbody>{r.indicators.map(i => <tr key={i.code}><Td>{indicatorLabel(i.code)}</Td><Td right>{i.latest_value?.toLocaleString('ko-KR', { maximumFractionDigits: 2 }) ?? '-'}</Td>
             <Td right>{i.change_30d_pct == null ? '-' : `${i.change_30d_pct > 0 ? '+' : ''}${i.change_30d_pct}%`}</Td><Td className="text-xs text-slate-500">{i.latest_date || '-'}</Td></tr>)}</tbody></table>
           : <None>수집된 시장 지표가 없습니다.</None>}
         {r.indicators.length > 0 && <p className="mt-1 text-xs text-slate-500">출처: {[...new Set(r.indicators.map(i => i.source))].join(', ')}</p>}

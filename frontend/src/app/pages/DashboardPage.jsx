@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { bi, eok } from '../../services/biApi';
-import { Button, Card, CHART, Delta, Empty, kpiText, kpiTitle, Loading, PageHeader } from '../ui';
+import { Button, Card, CHART, Delta, Empty, indicatorLabel, kpiText, kpiTitle, Loading, PageHeader } from '../ui';
 import { go, useWorkspace } from '../workspace';
 
 const axis = { fontSize: 12, stroke: CHART.axis, tickLine: false, axisLine: false };
@@ -47,9 +47,15 @@ export default function DashboardPage() {
   const monthly = dashboard.monthly;
   const chart = monthly.map(m => ({ ...m, salesE: m.sales / 1e8, purchaseE: m.purchase / 1e8, expenseE: m.expense / 1e8 }));
 
-  async function collect() {
+  async function collectFx() {
     setMsg('환율 수집 중...');
     try { const r = await bi('/market/fx/collect', { method: 'POST' }); setMsg(`ECB 기준환율 ${r.fetched}건 조회 · 신규 ${r.inserted}건 저장`); reload(); }
+    catch (e) { setMsg(e.message); }
+  }
+
+  async function collectMacro() {
+    setMsg('금리·유가 수집 중...');
+    try { const r = await bi('/market/macro/collect', { method: 'POST' }); setMsg(`금리·유가 ${r.fetched}건 조회 · 신규 ${r.inserted}건 저장`); reload(); }
     catch (e) { setMsg(e.message); }
   }
 
@@ -93,13 +99,14 @@ export default function DashboardPage() {
         <Card title="환율·금융지표" subtitle={fx?.change_30d ? `출처: ${fx.change_30d.source}` : '관심 지표'}
           actions={<>
             <select value={code} onChange={e => setFxCode(e.target.value)} aria-label="지표 선택" className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm">
-              {codes.map(c => <option key={c}>{c}</option>)}</select>
-            <Button variant="secondary" size="sm" icon={RefreshCw} onClick={collect}>환율 최신화</Button></>}>
+              {codes.map(c => <option key={c} value={c}>{indicatorLabel(c)}</option>)}</select>
+            <Button variant="secondary" size="sm" icon={RefreshCw} onClick={collectFx}>환율 최신화</Button>
+            <Button variant="secondary" size="sm" icon={RefreshCw} onClick={collectMacro}>금리·유가 최신화</Button></>}>
           {fx?.series.length ? <>
             <div className="h-52"><ResponsiveContainer><LineChart data={fx.series} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke={CHART.grid} /><XAxis dataKey="date" {...axis} minTickGap={40} tickFormatter={d => d.slice(5)} />
               <YAxis domain={['auto', 'auto']} {...axis} width={56} /><Tooltip />
-              <Line isAnimationActive={false} dataKey="value" name={code} stroke={CHART.violet} strokeWidth={2} dot={false} /></LineChart></ResponsiveContainer></div>
+              <Line isAnimationActive={false} dataKey="value" name={indicatorLabel(code)} stroke={CHART.violet} strokeWidth={2} dot={false} /></LineChart></ResponsiveContainer></div>
             {fx.change_30d && <p className="mt-2 text-sm text-slate-600">30일 변동 <b className="tabular-nums">{fx.change_30d.change_pct > 0 ? '+' : ''}{fx.change_30d.change_pct}%</b>
               <span className="text-xs text-slate-500"> ({fx.change_30d.from_date} → {fx.change_30d.to_date})</span></p>}
           </> : <Empty title={`${code} 데이터가 없습니다`} description={code === 'KR_BASE_RATE' ? '기준금리는 아직 자동 수집하지 않습니다. 관리자가 지표 API로 직접 입력할 수 있습니다.' : '‘환율 최신화’로 무료 ECB 기준환율을 가져올 수 있습니다.'} />}

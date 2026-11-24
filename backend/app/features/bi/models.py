@@ -26,6 +26,8 @@ class Company(Base):
     interest_industries: Mapped[list] = mapped_column(JSON)
     trade_countries: Mapped[list] = mapped_column(JSON)
     interest_indicators: Mapped[list] = mapped_column(JSON)
+    # Annual import scale in KRW, used for FX-sensitivity scenarios (None = not provided).
+    annual_import_krw: Mapped[float | None] = mapped_column(Float)
     created_by: Mapped[int] = mapped_column(ForeignKey("bi_users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime)
 

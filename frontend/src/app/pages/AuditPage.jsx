@@ -7,6 +7,7 @@ import { useWorkspace } from '../workspace';
 const PAGE = 25;
 export const AUDIT_ACTIONS = {
   COMPANY_CREATED: ['기업 등록', 'bg-brand-50 text-brand-700'],
+  COMPANY_UPDATED: ['기업 정보 변경', 'bg-brand-50 text-brand-700'],
   MEMBER_UPDATED: ['권한 변경', 'bg-violet-50 text-violet-700'],
   ERP_UPLOAD: ['데이터 업로드', 'bg-sky-50 text-sky-700'],
   ANALYSIS_RUN: ['AI 분석 실행', 'bg-indigo-50 text-indigo-700'],
@@ -21,6 +22,7 @@ export function describe(item) {
   const d = item.detail || {};
   switch (item.action) {
     case 'COMPANY_CREATED': return `${d.name} (${d.industry})`;
+    case 'COMPANY_UPDATED': return `${d.name} (${d.industry}) 수정`;
     case 'MEMBER_UPDATED': return `${d.name} <${d.email}> → ${LABEL[d.role] || d.role}`;
     case 'ERP_UPLOAD': return `${d.file_name} · ${d.accepted}행 저장${d.rejected ? `, ${d.rejected}행 제외` : ''}`;
     case 'ANALYSIS_RUN': return `${d.period} 분석 · 결과 ${d.findings}건 · ${d.narrative_source === 'llm' ? 'LLM 요약' : '템플릿 요약'}`;
