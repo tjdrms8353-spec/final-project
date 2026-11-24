@@ -1,7 +1,7 @@
 import ssl
 from functools import lru_cache
 
-from sqlalchemy import URL, create_engine
+from sqlalchemy import URL, create_engine, make_url
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -9,6 +9,8 @@ from app.core.config import get_settings
 
 def get_database_url() -> URL:
     settings = get_settings()
+    if settings.database_url:
+        return make_url(settings.database_url)
     if not all((settings.tidb_host, settings.tidb_user, settings.tidb_database)):
         raise RuntimeError("Set TIDB_HOST, TIDB_USER and TIDB_DATABASE before using the database.")
     return URL.create(
@@ -26,6 +28,8 @@ def get_database_url() -> URL:
 def get_engine():
     settings = get_settings()
     url = get_database_url()
+    if url.get_backend_name() == "sqlite":
+        return create_engine(url, connect_args={"check_same_thread": False})
     tls = ssl.create_default_context(cafile=settings.tidb_ssl_ca or None)
     return create_engine(
         url, pool_pre_ping=True,

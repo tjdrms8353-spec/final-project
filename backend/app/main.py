@@ -4,6 +4,7 @@ from app.core.config import get_settings
 from app.features.trends.router import router as trends_router
 from app.features.finance.router import router as finance_router
 from app.features.receipts.router import router as receipts_router
+from app.features.bi.router import router as bi_router
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name)
@@ -19,6 +20,7 @@ for router, prefix, legacy in (
 ):
     app.include_router(router, prefix=prefix)
     app.include_router(router, prefix=legacy, include_in_schema=False)
+app.include_router(bi_router, prefix="/api/bi")
 
 @app.get("/api/health")
 @app.get("/health")
