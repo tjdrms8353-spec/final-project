@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: dayribbon
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      # Signs BI login tokens. Render can generate a value automatically.
+      - key: AUTH_SECRET
+        generateValue: true
+      # SQLAlchemy URL. Examples:
+      #   sqlite:////data/dayribbon.db        (ephemeral on Render; demo only)
+      #   mysql+pymysql://user:pass@host:4000/db  (TiDB Cloud, add ?ssl_ca=... if needed)
+      # Leave empty and set TIDB_HOST/TIDB_USER/TIDB_PASSWORD/TIDB_DATABASE instead.
+      - key: DATABASE_URL
+        sync: false
+      - key: TIDB_HOST
+        sync: false
+      - key: TIDB_USER
+        sync: false
+      - key: TIDB_PASSWORD
+        sync: false
+      - key: TIDB_DATABASE
+        sync: false
+      - key: TIDB_PORT
+        value: "4000"
