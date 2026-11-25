@@ -56,6 +56,26 @@ chmod +x setup.sh start.sh stop.sh scripts/*.sh
 포트가 사용 중이면 자동으로 다음 사용 가능한 포트를 선택합니다.
 실행 후 출력되는 주소로 접속하세요.
 
+## 스크립트 설명
+
+`setup`/`start`/`stop`이 각각 `.ps1`(Windows PowerShell용)과 `.sh`(Linux/macOS bash용)
+두 개씩 있는 이유는 **같은 기능을 운영체제별로 제공**하기 때문입니다.
+
+| 파일 | 하는 일 |
+|---|---|
+| `setup` | 최초 1회 설치 — USB 소스를 로컬 작업공간으로 동기화 → Python 가상환경 생성 + 라이브러리 설치 → 프론트엔드 `npm install` |
+| `start` | 실행 — 로컬 작업공간에서 백엔드(FastAPI)와 프론트엔드(Vite)를 함께 실행. 사용 중인 포트를 피해 자동 선택 후 접속 주소 출력 |
+| `stop` | 종료 — `start`가 기록해둔 프로세스 ID를 읽어 두 서버를 종료 |
+
+Windows면 `.ps1`, Mac/Linux면 `.sh`를 실행하면 됩니다.
+
+보조 스크립트(`scripts/`):
+
+| 파일 | 하는 일 |
+|---|---|
+| `sync-local` | USB 소스 → 로컬 작업공간 미러링 (`.env`·인증서는 복제 제외) |
+| `check-secrets` | `.env`·인증서·키 파일이 Git에 추적되고 있는지 검사 |
+
 ## 접속 주소 (기본값)
 
 | 항목 | 주소 |
