@@ -27,7 +27,7 @@ export default function News() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-slate-900">뉴스 · 산업 동향</h1>
-          <p className="text-xs text-slate-500">기업 관련성 점수가 높은 뉴스만 선별 제공 · 모든 기사는 데모용 가상 데이터입니다</p>
+          <p className="text-xs text-slate-500">기업 관련성 점수가 높은 뉴스만 선별 제공 · 실수집 기사는 출처와 원문 링크가 표시됩니다</p>
         </div>
         {data && <Badge tone="purple">총 {data.total}건</Badge>}
       </div>
@@ -101,7 +101,7 @@ export default function News() {
                 <Badge tone="blue">{selected.category}</Badge>
                 <SeverityBadge severity={selected.importance} />
                 <SentimentBadge s={selected.sentiment} />
-                <Badge tone="purple">데모 기사</Badge>
+                {selected.is_demo ? <Badge tone="purple">데모 기사</Badge> : <Badge tone="green">실수집</Badge>}
               </div>
               <h2 className="text-lg font-bold text-slate-900 mb-3">{selected.title}</h2>
               <div className="text-xs text-slate-400 mb-4">{selected.source} · {selected.published_at.slice(0, 16).replace('T', ' ')}</div>
@@ -116,8 +116,12 @@ export default function News() {
                   <div className="text-xs text-slate-700">{selected.why_relevant}</div>
                 </div>
               </div>
+              {selected.link && (
+                <a href={selected.link} target="_blank" rel="noopener noreferrer"
+                  className="inline-block mt-3 text-xs text-brand-600 hover:underline">원문 보기 ↗</a>
+              )}
               <div className="mt-3 text-[11px] text-slate-400">
-                관련성 점수 {selected.relevance_score}점은 기업 프로필(업종·제품·거래처·관심 위험)과의 규칙 기반 매칭으로 산출된 데모 값입니다.
+                관련성 점수 {selected.relevance_score}점은 기업 프로필(업종·제품·거래처·관심 위험)과의 규칙 기반 매칭으로 산출된 값입니다.
               </div>
               <button onClick={() => setSelected(null)} className="mt-4 text-sm text-brand-600 hover:underline">닫기</button>
             </div>

@@ -45,8 +45,21 @@ LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "")  # 예: http://localhost:11434/v1
 LLM_MODEL = os.getenv("LLM_MODEL", "")
 
-# --- 외부 데이터 수집 API 키 (미연결, 인터페이스만 정의) ---
+# --- 외부 데이터 수집 (정식 전환 B) ---
 EXIM_API_KEY = os.getenv("EXIM_API_KEY", "")      # 한국수출입은행 환율 API
 ECOS_API_KEY = os.getenv("ECOS_API_KEY", "")      # 한국은행 ECOS
-DART_API_KEY = os.getenv("DART_API_KEY", "")      # DART 전자공시
-NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")      # 뉴스 수집용
+DART_API_KEY = os.getenv("DART_API_KEY", "")      # DART 전자공시 (미구현)
+NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")      # 뉴스 검색 API (RSS 수집에는 불필요)
+
+# 수집 주기·타임아웃
+COLLECT_INTERVAL_SEC = int(os.getenv("COLLECT_INTERVAL_SEC", str(6 * 3600)))
+COLLECT_TIMEOUT_SEC = int(os.getenv("COLLECT_TIMEOUT_SEC", "15"))
+
+# 뉴스 RSS 수집 — API 키 없이 동작. 쉼표로 여러 피드 지정 가능.
+NEWS_COLLECT_ENABLED = os.getenv("NEWS_COLLECT_ENABLED", "1") == "1"
+NEWS_RSS_URLS = os.getenv(
+    "NEWS_RSS_URLS",
+    "https://news.google.com/rss/search?"
+    "q=%ED%99%98%EC%9C%A8+OR+%EC%88%98%EC%B6%9C%EC%9E%85+OR+%EC%9B%90%EC%9E%90%EC%9E%AC"
+    "&hl=ko&gl=KR&ceid=KR:ko",
+)

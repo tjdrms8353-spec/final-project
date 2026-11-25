@@ -12,6 +12,9 @@ os.environ["DATABASE_URL"] = f"sqlite:///{_tmp}/test.db"
 os.environ["SEED_DEMO"] = "1"
 # 스케줄러가 테스트 중 즉시 돌지 않도록 큰 간격 지정
 os.environ["AUTO_ANALYSIS_INTERVAL_SEC"] = "86400"
+os.environ["COLLECT_INTERVAL_SEC"] = "86400"
+# 테스트 중 실제 외부 호출 차단 (수집기는 mock으로 검증)
+os.environ["NEWS_COLLECT_ENABLED"] = "0"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

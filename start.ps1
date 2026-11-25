@@ -1,7 +1,15 @@
-# dayribbon BI 데모 - 백엔드/프론트엔드 실행 (Windows PowerShell)
+# dayribbon BI - 백엔드/프론트엔드 실행 (Windows PowerShell)
+# 로컬 작업공간(DAYRIBBON_LOCAL 또는 C:\dayribbon-build)에서 실행한다.
+# 최신 소스 반영이 필요하면 먼저 scripts\sync-local.ps1을 실행하세요.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$runtime = "$root\runtime"
+$local = if ($env:DAYRIBBON_LOCAL) { $env:DAYRIBBON_LOCAL } else { "C:\dayribbon-build" }
+
+if (-not (Test-Path "$local\backend\.venv\Scripts\python.exe")) {
+  throw "로컬 작업공간이 없습니다: $local — setup.ps1을 먼저 실행하세요."
+}
+
+$runtime = "$local\runtime"
 New-Item -ItemType Directory -Force -Path $runtime | Out-Null
 
 function Test-PortFree($port) {
@@ -25,11 +33,11 @@ $env:VITE_BACKEND_URL = "http://localhost:$bePort"
 
 Write-Host "백엔드 포트: $bePort / 프론트엔드 포트: $fePort" -ForegroundColor Cyan
 
-$be = Start-Process -PassThru -FilePath "$root\backend\.venv\Scripts\python.exe" `
-  -ArgumentList 'run.py' -WorkingDirectory "$root\backend"
+$be = Start-Process -PassThru -FilePath "$local\backend\.venv\Scripts\python.exe" `
+  -ArgumentList 'run.py' -WorkingDirectory "$local\backend"
 $fe = Start-Process -PassThru -FilePath 'cmd.exe' `
   -ArgumentList '/c', "npm run dev -- --port $fePort --host 127.0.0.1" `
-  -WorkingDirectory "$root\frontend"
+  -WorkingDirectory "$local\frontend"
 
 @{ backend_pid = $be.Id; frontend_pid = $fe.Id; backend_port = $bePort; frontend_port = $fePort } |
   ConvertTo-Json | Out-File "$runtime\pids.json" -Encoding utf8

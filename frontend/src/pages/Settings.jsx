@@ -24,6 +24,7 @@ export default function Settings() {
   const [ns, setNs] = useState(null)
   const [invites, setInvites] = useState([])
   const [myCompanies, setMyCompanies] = useState([])
+  const [collect, setCollect] = useState(null)
   const [invEmail, setInvEmail] = useState('')
   const [invRole, setInvRole] = useState('MEMBER')
   const [invToken, setInvToken] = useState('')
@@ -35,9 +36,9 @@ export default function Settings() {
     setLoading(true)
     Promise.all([
       api('/api/company'), api('/api/users'), api('/api/notification-settings'),
-      api('/api/invites'), api('/api/companies/mine'),
-    ]).then(([c, u, n, i, m]) => {
-      setCompany(c); setUsers(u); setNs(n); setInvites(i); setMyCompanies(m)
+      api('/api/invites'), api('/api/companies/mine'), api('/api/collection/status'),
+    ]).then(([c, u, n, i, m, col]) => {
+      setCompany(c); setUsers(u); setNs(n); setInvites(i); setMyCompanies(m); setCollect(col)
     }).catch(e => setError(e.message)).finally(() => setLoading(false))
   }
   useEffect(load, [])
@@ -104,7 +105,7 @@ export default function Settings() {
       {msg && <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg px-4 py-2 text-sm">{msg}</div>}
 
       <div className="flex gap-2">
-        {[['company', '기업 정보'], ['users', '사용자 · 권한'], ['notify', '알림 설정']].map(([k, l]) => (
+        {[['company', '기업 정보'], ['users', '사용자 · 권한'], ['notify', '알림 설정'], ['collect', '데이터 수집']].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === k ? 'bg-brand-600 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>
             {l}
@@ -235,6 +236,56 @@ export default function Settings() {
               )}
             </Card>
           )}
+        </div>
+      )}
+
+      {tab === 'collect' && collect && (
+        <div className="space-y-4">
+          <Card className="p-5">
+            <SectionTitle>외부 데이터 수집기</SectionTitle>
+            <p className="text-xs text-slate-500 mb-3">
+              환율·금리·뉴스를 외부 공개 소스에서 주기적으로 수집해 기업 데이터와 분리된 출처로 저장합니다.
+              수집된 데이터는 분석·대시보드의 시장 지표로 반영됩니다.
+            </p>
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-xs text-slate-500">
+                <tr>{['수집기', '출처', '상태'].map(h => <th key={h} className="px-4 py-2 text-left font-medium">{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {collect.collectors.map(c => (
+                  <tr key={c.name} className="border-t border-slate-100">
+                    <td className="px-4 py-2.5 font-medium">{c.name}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-500">{c.source}</td>
+                    <td className="px-4 py-2.5">
+                      <Badge tone={c.enabled ? 'green' : 'amber'}>{c.enabled ? '활성' : 'API 키/설정 대기'}</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+
+          <Card className="p-5">
+            <SectionTitle>수집 현황</SectionTitle>
+            <div className="text-sm text-slate-600 space-y-1">
+              <div>마지막 수집: {collect.last_run?.at ? collect.last_run.at.replace('T', ' ').slice(0, 19) : '아직 없음'}</div>
+              {collect.company_data && (
+                <div>수집 데이터: 시장 지표 {collect.company_data.market_series}건 · 실수집 뉴스 {collect.company_data.news_real}건</div>
+              )}
+              {collect.last_run?.summary?.map(s => (
+                <div key={s.name} className="text-xs text-slate-500">
+                  · {s.name}: 시계열 {s.series}건 / 뉴스 {s.news}건{s.errors.length ? ` — ${s.errors.join(' / ')}` : ''}
+                </div>
+              ))}
+            </div>
+            {isAdmin && (
+              <button onClick={async () => {
+                try { const r = await api('/api/collection/run', { method: 'POST' }); setMsg('수집 실행 완료'); setCollect({ ...collect, last_run: { at: r.ran_at, summary: r.collectors } }) }
+                catch (e) { setError(e.message) }
+              }} className="mt-4 bg-brand-600 text-white text-sm rounded-lg px-5 py-2.5 hover:bg-brand-700">지금 수집 실행</button>
+            )}
+            {!isAdmin && <div className="mt-3 text-xs text-slate-400">수동 수집 실행은 ADMIN/OWNER만 가능합니다.</div>}
+          </Card>
         </div>
       )}
 

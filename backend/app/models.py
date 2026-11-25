@@ -175,6 +175,10 @@ class MarketSeries(Base):
     """환율/금리/지수/원자재 등 범용 시계열 데이터"""
 
     __tablename__ = "market_series"
+    # 기업·시리즈·월 조합은 하나만 존재 (수집 upsert의 중복 차단 키)
+    __table_args__ = (
+        UniqueConstraint("company_id", "series_key", "month", name="uq_market_series"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True, nullable=True)
@@ -194,6 +198,7 @@ class NewsItem(Base):
     title: Mapped[str] = mapped_column(String(500))
     summary: Mapped[str] = mapped_column(Text, default="")
     source: Mapped[str] = mapped_column(String(200), default="(데모) 산업 뉴스")
+    link: Mapped[str] = mapped_column(String(500), default="")  # 원문 링크 — 실수집 뉴스 출처 표기·중복 차단 키
     category: Mapped[str] = mapped_column(String(50), default="산업동향")  # 반도체/정책/거시경제/공급망/환율 등
     sentiment: Mapped[str] = mapped_column(String(20), default="neutral")  # positive/negative/neutral
     relevance_score: Mapped[float] = mapped_column(Float, default=0)  # 0~100

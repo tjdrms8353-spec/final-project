@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# dayribbon BI 데모 - 종료 (Linux/macOS)
-ROOT="$(cd "$(dirname "$0")" && pwd)"
-PIDFILE="$ROOT/runtime/pids.json"
+# dayribbon BI - 종료 (Linux/macOS)
+LOCAL="${DAYRIBBON_LOCAL:-$HOME/dayribbon-local}"
+PIDFILE="$LOCAL/runtime/pids.json"
 [ -f "$PIDFILE" ] || { echo "실행 정보가 없습니다."; exit 0; }
 
 python3 - "$PIDFILE" <<'EOF'
@@ -17,6 +17,6 @@ for key in ("backend_pid", "frontend_pid"):
             print(f"PID {pid} 이미 종료됨")
 EOF
 
-pkill -f "dayribbon-bi-demo/frontend" 2>/dev/null || true
+pkill -f "$LOCAL/frontend" 2>/dev/null || true
 rm -f "$PIDFILE"
 echo "중지 완료."

@@ -177,3 +177,42 @@
 - 다중 PC 규칙 확정: USB=소스·git·문서·인증파일, 각 PC=venv·node_modules·빌드 산출물
 - 재검증: pytest 39/39 통과, vite build 통과, uvicorn 실기동 + 회원가입/로그인/health-db 실API 확인, vite dev 서빙 + /api 프록시 확인
 - 주의: 이 PC의 venv는 `C:\venvs\dayribbon`, 프론트 빌드 작업공간은 `C:\dayribbon-build` (node_modules junction). 다른 PC에서는 각자 `python -m venv` + `npm install` 수행
+
+---
+
+## 정식 전환 단계 B — 실제 데이터 수집 (완료)
+
+### 환경 보완 (전환 B 사전 작업)
+- `scripts/sync-local.ps1`/`sync-local.sh`: USB→PC 로컬 작업공간 미러링 (robocopy/rsync).
+  .env·*.pem·*.key·secrets/·.git·node_modules·venv·dist·runtime·data 제외 — 민감정보 로컬 복제 차단
+- `scripts/check-secrets.ps1`/`.sh`: 민감정보 Git 추적 검사 (git ls-files 스캔)
+- `setup.ps1`/`setup.sh`: 동기화→로컬 venv 생성→pip install→npm install 자동화
+- `start.ps1`/`stop.ps1`/`start.sh`/`stop.sh`: 로컬 작업공간(`DAYRIBBON_LOCAL`, 기본 C:\dayribbon-build / ~/dayribbon-local)에서 실행하도록 갱신 — 드라이브 문자 무의존(스크립트 위치 기준)
+- `.env` USB 보관·Git 미추적·동기화 제외 확인
+
+### 수집기 실구현 (services/collectors/)
+- `base.py`: `get_json`/`get_text` HTTP 헬퍼(httpx, 타임아웃·에러 래핑) + Collector 프로토콜
+- `EximFxCollector`: 수출입은행 환율 API 실호출 — USD/JPY(100)/EUR/CNH → USD_KRW 등 시계열. EXIM_API_KEY 필요
+- `EcosRateCollector`: 한국은행 ECOS StatisticSearch — 기준금리(722Y001/010100000) 월 시계열. ECOS_API_KEY 필요
+- `NewsCollector`(news_stub.py): RSS 피드 수집 — API 키 불필요, NEWS_RSS_URLS 다중 피드, xml.etree 파싱, 제목·요약·링크만 저장(원문 전재 없음)
+
+### 수집 서비스 (services/collection_service.py)
+- 기업별 저장: 수집 1회 → 모든 기업에 복제 저장(기존 company_id 조회 모델 유지)
+- 중복 차단: MarketSeries (company_id, series_key, month) 유니크 upsert, NewsItem link/제목 dedup
+- 뉴스 분류: 키워드 기반 카테고리(환율/금리/공급망/원자재/수출입)·감성·기업 프로필 관련도 점수
+- 출처 표기: source 필드 + link, 실수집은 is_demo=False — 감사로그 collection.run 기록
+
+### 연동
+- `GET /api/collection/status`, `POST /api/collection/run` (ADMIN+) — routers/collection.py
+- 스케줄러: COLLECT_INTERVAL_SEC(기본 6h)마다 활성 수집기 전 기업 수집
+- 프론트: Settings "데이터 수집" 탭(수집기 상태·수집 현황·수동 실행), 뉴스 상세에 실수집 배지+원문 링크
+- 모델: NewsItem.link 추가, MarketSeries 유니크 제약 — 마이그레이션 9a0e03dfc4e4 (upgrade/downgrade 검증)
+
+### 검증
+- pytest 52/52 통과 (신규 13: EXIM/ECOS/RSS 파싱·비활성·upsert·dedup·격리·API 권한)
+- 실기동 검증: RSS 뉴스 30건 실수집(is_demo=False, 실제 언론사 출처), 재실행 중복 0건
+
+### 외부 설정 대기
+- EXIM_API_KEY — 환율 실수집 (구현 완료·키 대기)
+- ECOS_API_KEY — 기준금리 실수집 (구현 완료·키 대기)
+- NEWS_API_KEY — 검색 API 뉴스 보강 (RSS로 기본 동작 중)

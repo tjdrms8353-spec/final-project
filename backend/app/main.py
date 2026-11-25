@@ -7,13 +7,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import (
-    APP_ENV, AUTO_ANALYSIS_INTERVAL_SEC, CORS_ORIGINS, DEMO_EVENTS_ENABLED,
-    SEED_DEMO,
+    APP_ENV, AUTO_ANALYSIS_INTERVAL_SEC, COLLECT_INTERVAL_SEC, CORS_ORIGINS,
+    DEMO_EVENTS_ENABLED, SEED_DEMO,
 )
 from .database import Base, SessionLocal, engine
 from .models import AnalysisResult, Company
 from .routers import (
-    alerts, analysis, audit, auth, company, dashboard, decisions,
+    alerts, analysis, audit, auth, collection, company, dashboard, decisions,
     demo_events, finance, financial, news, reports, simulation,
 )
 from .seed import seed
@@ -43,13 +43,23 @@ def _scheduler_loop(stop: threading.Event):
     """경량 자동 분석 스케줄러 (데모용).
 
     - 매 AUTO_ANALYSIS_INTERVAL_SEC초마다 위험 감지 실행
+    - COLLECT_INTERVAL_SEC(기본 6시간)마다 외부 데이터 수집 (활성 수집기만)
     - 24시간마다 성장/방향성/위험 분석 결과 재생성
     - 신규 알림이 있을 때만 DB에 기록 (중복 알림은 엔진에서 차단)
     """
+    last_collect = 0.0
     while not stop.is_set():
         try:
             db = SessionLocal()
             try:
+                # 외부 데이터 수집 — 주기 도래 시 전 기업 대상 (수집기 enabled 조건 내부 검사)
+                if time.time() - last_collect >= COLLECT_INTERVAL_SEC:
+                    from .services.collection_service import collectors_status, run_collection
+                    if any(c["enabled"] for c in collectors_status()):
+                        info = run_collection(db)
+                        print(f"[collector] 수집 완료: 기업 {info['companies']}곳")
+                    last_collect = time.time()
+
                 cids = [c.id for c in db.query(Company.id).all()]
                 for cid in cids:
                     from .services.analysis_engine import detect_risks, weekly_summary
@@ -91,7 +101,7 @@ app.add_middleware(
 for r in (auth.auth_router, company.company_router, dashboard.router,
           financial.router, news.router, finance.router, analysis.router,
           simulation.router, alerts.router, decisions.router,
-          reports.router, audit.router):
+          reports.router, audit.router, collection.router):
     app.include_router(r)
 
 # 데모 전용 라우터 — DEMO_EVENTS_ENABLED=1 일 때만 노출 (실데이터 오염 방지)

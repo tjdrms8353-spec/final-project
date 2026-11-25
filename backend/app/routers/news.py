@@ -8,14 +8,14 @@ from ..models import NewsItem, User
 
 router = APIRouter(prefix="/api/news", tags=["news"])
 
-CATEGORIES = ["반도체", "정책", "거시경제", "공급망", "환율", "산업동향"]
+CATEGORIES = ["반도체", "정책", "거시경제", "공급망", "환율", "금리", "원자재", "수출입", "산업동향"]
 
 
 def news_dict(n: NewsItem, detail: bool = False) -> dict:
     d = {
         "id": n.id, "title": n.title, "category": n.category,
         "sentiment": n.sentiment, "relevance_score": n.relevance_score,
-        "importance": n.importance, "source": n.source,
+        "importance": n.importance, "source": n.source, "link": n.link,
         "summary": n.summary,
         "impact_on_company": n.impact_on_company, "why_relevant": n.why_relevant,
         "published_at": n.published_at.isoformat() if n.published_at else "",
