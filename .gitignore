@@ -12,3 +12,11 @@ frontend/dist/
 # misc
 *.log
 .DS_Store
+
+# 인증 정보·비밀 파일 — USB에는 보관하되 Git에는 포함하지 않음
+.env
+*.pem
+*.key
+secrets/
+backend/data/*.db
+

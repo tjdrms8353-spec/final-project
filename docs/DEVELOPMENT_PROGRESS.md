@@ -163,3 +163,17 @@
 - 이메일 발송 모듈 — 초대/재설정 토큰 현재 응답 반환 방식
 - TiDB 타겟 마이그레이션 실환경 적용
 - 프론트엔드 로컬 실행 — E: 드라이브 공간 확보 후 node_modules 설치 필요
+
+---
+
+## 복구·다중 PC 환경 구축 (전환 A 이후 점검 작업)
+
+- E: 드라이브 용량 부족(0바이트)으로 C:에서 수행했던 작업물과 USB 원본을 전수 비교
+- `diff -r` 결과 C:\dayribbon-build 소스 = USB 소스 완전 동일 → 누락 소스 없음
+- git 이력 2커밋(bfa3b78, 7c77401) 및 전환 A 산출물 전체 USB 보존 확인
+- C:에만 있던 인증 정보·중요 파일 없음 확인
+- `.gitignore`에 `.env`·`*.pem`·`*.key`·`secrets/` 추가 (인증 정보는 USB 보관·Git 미포함)
+- 개발용 `.env`를 프로젝트 루트에 생성 — 실제 키 확보 시 여기에만 기록
+- 다중 PC 규칙 확정: USB=소스·git·문서·인증파일, 각 PC=venv·node_modules·빌드 산출물
+- 재검증: pytest 39/39 통과, vite build 통과, uvicorn 실기동 + 회원가입/로그인/health-db 실API 확인, vite dev 서빙 + /api 프록시 확인
+- 주의: 이 PC의 venv는 `C:\venvs\dayribbon`, 프론트 빌드 작업공간은 `C:\dayribbon-build` (node_modules junction). 다른 PC에서는 각자 `python -m venv` + `npm install` 수행
