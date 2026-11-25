@@ -100,3 +100,66 @@
 ### 20단계 계획 전체 완료
 - 1~15 데모 구현, 16 문서 체계, 17 테스트, 18 보안, 19 기능 보완, 20 전환 준비
 - 이후 작업은 `DEVELOPMENT_PLAN.md`의 Phase A~E(정식 전환)로 진행
+
+---
+
+# 정식 전환 작업 기록 (dayribbon 정식 프로젝트)
+
+> 원본 데모 `dayribbon-bi-demo` 보존, 정식 프로젝트 `dayribbon`에서 진행.
+> 20단계 데모 계획과 별개 번호: 전환 단계 A~E (`PRODUCTION_PLAN_A.md`)
+
+## 2026-11-25 — 전환 단계 A: 기반 시스템 구축 [완료]
+
+### 환경 분리
+- 정식 프로젝트: `E:\송성근(심화)\dayribbon\dayribbon` (독립 git, main 브랜치)
+- 원본 데모 `dayribbon-bi-demo` 미수정 보존, ERP 프로젝트 무수정
+- E: 드라이브 여유공간 0으로 백엔드 venv는 `C:\venvs\dayribbon`에 설치
+  (테스트 명령: `C:/venvs/dayribbon/Scripts/python.exe -m pytest tests`)
+- 프론트 빌드 검증은 `C:\dayribbon-build` 작업공간(node_modules junction)에서 수행
+
+### DB (TiDB 준비)
+- `pymysql`·`alembic` 의존성 실제 추가(requirements.txt)
+- `database.py`: 비-sqlite 시 pool_size/pool_recycle/pool_pre_ping, `DB_SSL_CA` TLS
+- `GET /api/health/db` — SELECT 1 기반 연결 상태 API
+- `APP_ENV=production` 시 DATABASE_URL 미설정·sqlite 지정이면 RuntimeError로 시작 거부
+- production 기본값: SEED_DEMO·DEMO_EVENTS_ENABLED 자동 비활성
+- Alembic 초기화 + 최초 마이그레이션 `033a6f74f669 initial schema` (22테이블)
+  — upgrade→downgrade→upgrade SQLite 검증 통과. TiDB 실접속은 접속 정보 대기(외부 설정)
+- 금액 컬럼 Float 유지 결정: float64 유효자릿수(~15자리)가 현재 규모(조 단위 원화)에 충분.
+  Decimal(Numeric(20,2)) 전환은 데이터 규모 확대 시 별도 마이그레이션으로 검토
+
+### 인증
+- POST /api/auth/register (이메일 중복 409, 비밀번호 min 8, 기업 미소속 생성)
+- POST /api/auth/change-password (현재 비밀번호 검증, 기존 세션 전체 무효화)
+- POST /api/auth/password-reset/request + /confirm (해시 토큰·1회용·1시간 만료,
+  이메일 미연동으로 데모 토큰 응답 포함 — 발송 연동 시 제거)
+- 기존 유지: 토큰 해시 저장·만료·로그아웃 무효화·로그인 5회 잠금
+
+### 워크스페이스·권한
+- memberships 테이블 (user↔company M:N, 유니크 제약)
+- users.company_id → 활성 기업 포인터(nullable, 회원가입 직후 NULL)
+- Company 모델 데모 기본값 제거 — 신규 기업 빈 상태 시작
+- POST /api/companies (기업 등록 → OWNER 소속·알림설정 생성, 데모 데이터 미생성)
+- GET /api/companies/mine, POST /api/companies/select (소속 검증 필수)
+- company_invites: 생성(ADMIN+, OWNER 초대 불가)·목록·취소·수락(이메일 일치 검증)·만료
+- PUT /api/users/{id} OWNER 보호(OWNER 변경·부여는 OWNER만), DELETE 접근 해제
+- require_write에 소속 기업 필수 가드, 감사로그 company_id NULL 안전 처리
+
+### 프론트엔드
+- Signup.jsx, Onboarding.jsx (기업 등록·초대 수락·소속 기업 선택)
+- RequireAuth: company_id 없으면 /onboarding 리다이렉트
+- Login: /api/health mode 기반 데모 계정 표시(운영에서 미노출), 회원가입 링크
+- Settings 사용자 탭: 워크스페이스 전환·초대 생성/목록/취소·권한 변경·접근 해제
+
+### 테스트·검증
+- pytest 39/39 통과 (회귀 23 + 신규 16: 가입·중복·기업등록·OWNER·초대수락/만료/취소/
+  이메일 불일치·ADMIN 상승 차단·교차기업 격리·접근해제·미소속 쓰기 차단·
+  비밀번호 변경/재설정·health/db·소속검증)
+- 프론트엔드 vite build 통과 (C: 작업공간에서 검증)
+- 운영 안전장치 검증: prod+mysql → 데모 차단 / prod+URL 없음 → 시작 거부
+
+### 미완료·외부 설정 대기
+- TiDB 실제 접속 검증 — 접속 정보 필요 (DATABASE_URL, DB_SSL_CA)
+- 이메일 발송 모듈 — 초대/재설정 토큰 현재 응답 반환 방식
+- TiDB 타겟 마이그레이션 실환경 적용
+- 프론트엔드 로컬 실행 — E: 드라이브 공간 확보 후 node_modules 설치 필요

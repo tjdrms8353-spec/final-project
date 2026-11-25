@@ -4,6 +4,8 @@ import { useAuth } from './auth'
 import Layout from './components/Layout'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
+import Signup from './pages/Signup'
+import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import News from './pages/News'
 import Finance from './pages/Finance'
@@ -20,6 +22,7 @@ function RequireAuth({ children }) {
   const { user, loading } = useAuth()
   if (loading) return <div className="h-screen flex items-center justify-center text-slate-400">로딩 중…</div>
   if (!user) return <Navigate to="/login" replace />
+  if (!user.company_id) return <Navigate to="/onboarding" replace />
   return children
 }
 
@@ -28,6 +31,8 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/app" element={<RequireAuth><Layout /></RequireAuth>}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />

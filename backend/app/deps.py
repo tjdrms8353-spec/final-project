@@ -41,6 +41,8 @@ def require_role(*roles: str):
 def require_write(user: User = Depends(get_current_user)) -> User:
     if user.role not in WRITE_ROLES:
         raise HTTPException(403, "읽기 전용(VIEWER) 권한으로는 수정 작업을 수행할 수 없습니다.")
+    if not user.company_id:
+        raise HTTPException(400, "소속 기업이 없습니다. 기업을 등록하거나 초대를 수락하세요.")
     return user
 
 
@@ -54,7 +56,7 @@ def audit(db: Session, user: User | None, action: str, target_type: str = "",
           target_id: str = "", detail: str = ""):
     from .models import AuditLog
     log = AuditLog(
-        company_id=user.company_id if user else 0,
+        company_id=(user.company_id or 0) if user else 0,
         user_id=user.id if user else None,
         user_name=user.name if user else "(시스템)",
         user_role=user.role if user else "",

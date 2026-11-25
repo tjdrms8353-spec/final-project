@@ -7,7 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import (
-    AUTO_ANALYSIS_INTERVAL_SEC, CORS_ORIGINS, DEMO_EVENTS_ENABLED, SEED_DEMO,
+    APP_ENV, AUTO_ANALYSIS_INTERVAL_SEC, CORS_ORIGINS, DEMO_EVENTS_ENABLED,
+    SEED_DEMO,
 )
 from .database import Base, SessionLocal, engine
 from .models import AnalysisResult, Company
@@ -73,9 +74,9 @@ def _scheduler_loop(stop: threading.Event):
 
 
 app = FastAPI(
-    title="dayribbon BI Demo API",
-    description="AI 기반 중소기업형 맞춤형 BI 시스템 — 데모 버전 (규칙 기반 분석)",
-    version="0.1.0",
+    title="dayribbon BI API",
+    description="AI 기반 중소기업형 맞춤형 BI 시스템",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
@@ -100,5 +101,18 @@ if DEMO_EVENTS_ENABLED:
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "dayribbon-bi-demo",
-            "mode": "demo (rule-based analysis)", "time": datetime.utcnow().isoformat()}
+    return {"status": "ok", "service": "dayribbon",
+            "env": APP_ENV,
+            "mode": "demo (rule-based analysis)" if SEED_DEMO else "service",
+            "time": datetime.utcnow().isoformat()}
+
+
+@app.get("/api/health/db")
+def health_db():
+    """DB 연결 상태 확인 — 운영 모니터링용."""
+    from .database import check_db
+    r = check_db()
+    if not r["ok"]:
+        from fastapi import HTTPException
+        raise HTTPException(503, f"DB 연결 실패: {r.get('error', '')[:200]}")
+    return {"status": "ok", **r}

@@ -7,6 +7,56 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    email: str
+    password: str = Field(min_length=8)
+    name: str = Field(min_length=1, max_length=100)
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)
+
+
+class PasswordResetRequest(BaseModel):
+    email: str
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)
+
+
+class CompanyCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    industry: str = ""
+    size: str = ""
+    products: str = ""
+    key_customers: str = ""
+    export_countries: str = ""
+    import_countries: str = ""
+    raw_materials: str = ""
+    export_import_ratio: str = ""
+    annual_revenue: float = 0
+    annual_raw_material_cost: float = 0
+    fx_settlement_ratio: float = 0
+    interest_areas: str = ""
+    risk_concerns: str = ""
+
+
+class CompanySelect(BaseModel):
+    company_id: int
+
+
+class InviteCreate(BaseModel):
+    email: str
+    role: str = "MEMBER"  # ADMIN/MEMBER/VIEWER
+
+
+class InviteAccept(BaseModel):
+    token: str
+
+
 class CompanyUpdate(BaseModel):
     name: Optional[str] = None
     industry: Optional[str] = None

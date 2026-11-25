@@ -1,7 +1,8 @@
 from datetime import datetime
 
 from sqlalchemy import (
-    String, Integer, Float, Boolean, DateTime, ForeignKey, Text, JSON
+    String, Integer, Float, Boolean, DateTime, ForeignKey, Text, JSON,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -16,20 +17,21 @@ class Company(Base):
     __tablename__ = "companies"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(200), default="(데모) 한빛세미텍")
-    industry: Mapped[str] = mapped_column(String(100), default="반도체 부품 제조업")
-    size: Mapped[str] = mapped_column(String(50), default="중소기업 (직원 150명)")
-    products: Mapped[str] = mapped_column(Text, default="파워 반도체 패키지, 아날로그 IC 서브스트레이트, 센서 모듈")
-    key_customers: Mapped[str] = mapped_column(Text, default="국내 완성차 전장 부품사 A, B, 해외 디스플레이 모듈 업체 C")
-    export_countries: Mapped[str] = mapped_column(Text, default="미국, 베트남, 독일")
-    import_countries: Mapped[str] = mapped_column(Text, default="일본, 대만, 중국")
-    raw_materials: Mapped[str] = mapped_column(Text, default="실리콘 웨이퍼, 동박(Cu), 에폭시 수지, 금(Au) 와이어")
-    export_import_ratio: Mapped[str] = mapped_column(String(50), default="수출 62% / 수입 38%")
-    annual_revenue: Mapped[float] = mapped_column(Float, default=120_000_000_000)  # 원
-    annual_raw_material_cost: Mapped[float] = mapped_column(Float, default=78_000_000_000)
-    fx_settlement_ratio: Mapped[float] = mapped_column(Float, default=0.55)  # 외화 결제 비중
-    interest_areas: Mapped[str] = mapped_column(Text, default="반도체 공급망, 수출 통상정책, 환율")
-    risk_concerns: Mapped[str] = mapped_column(Text, default="환율 급등, 핵심 원자재 가격 상승, 특정 거래처 의존")
+    # 신규 등록 기업은 빈 상태로 시작 (데모 기본값 없음 — 시드가 명시적으로 채움)
+    name: Mapped[str] = mapped_column(String(200), default="")
+    industry: Mapped[str] = mapped_column(String(100), default="")
+    size: Mapped[str] = mapped_column(String(50), default="")
+    products: Mapped[str] = mapped_column(Text, default="")
+    key_customers: Mapped[str] = mapped_column(Text, default="")
+    export_countries: Mapped[str] = mapped_column(Text, default="")
+    import_countries: Mapped[str] = mapped_column(Text, default="")
+    raw_materials: Mapped[str] = mapped_column(Text, default="")
+    export_import_ratio: Mapped[str] = mapped_column(String(50), default="")
+    annual_revenue: Mapped[float] = mapped_column(Float, default=0)
+    annual_raw_material_cost: Mapped[float] = mapped_column(Float, default=0)
+    fx_settlement_ratio: Mapped[float] = mapped_column(Float, default=0)  # 외화 결제 비중
+    interest_areas: Mapped[str] = mapped_column(Text, default="")
+    risk_concerns: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     users = relationship("User", back_populates="company")
@@ -43,15 +45,64 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    # 현재 활성 기업. 회원가입 직후(기업 미소속)에는 NULL
+    company_id: Mapped[int | None] = mapped_column(
+        ForeignKey("companies.id"), index=True, nullable=True)
     email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(256))
     name: Mapped[str] = mapped_column(String(100))
-    role: Mapped[str] = mapped_column(String(20), default="MEMBER")  # OWNER/ADMIN/MEMBER/VIEWER
+    role: Mapped[str] = mapped_column(String(20), default="MEMBER")  # OWNER/ADMIN/MEMBER/VIEWER (활성 기업 기준)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     company = relationship("Company", back_populates="users")
+    memberships = relationship("Membership", back_populates="user",
+                               cascade="all, delete-orphan")
+
+
+class Membership(Base):
+    """사용자-기업 소속 관계 (사용자는 여러 기업 워크스페이스에 소속 가능)"""
+
+    __tablename__ = "memberships"
+    __table_args__ = (UniqueConstraint("user_id", "company_id", name="uq_membership"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    role: Mapped[str] = mapped_column(String(20), default="MEMBER")  # OWNER/ADMIN/MEMBER/VIEWER
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    user = relationship("User", back_populates="memberships")
+    company = relationship("Company")
+
+
+class CompanyInvite(Base):
+    """기업 사용자 초대. 초대 토큰은 해시로만 저장한다."""
+
+    __tablename__ = "company_invites"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    email: Mapped[str] = mapped_column(String(200), index=True)
+    role: Mapped[str] = mapped_column(String(20), default="MEMBER")  # ADMIN/MEMBER/VIEWER (OWNER 초대 불가)
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending/accepted/expired/cancelled
+    invited_by: Mapped[str] = mapped_column(String(100), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    accepted_by: Mapped[str] = mapped_column(String(200), default="")
+
+
+class PasswordResetToken(Base):
+    """비밀번호 재설정 토큰 (해시 저장, 1회용). 이메일 발송 모듈 연동 대기 구조."""
+
+    __tablename__ = "password_reset_tokens"
+
+    token_hash: Mapped[str] = mapped_column(String(128), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    used: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class AuthToken(Base):

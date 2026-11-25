@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { api } from '../api'
 import { ErrorBox } from '../components/ui'
 
 const DEMO_ACCOUNTS = [
@@ -13,10 +14,15 @@ const DEMO_ACCOUNTS = [
 export default function Login() {
   const { login } = useAuth()
   const nav = useNavigate()
-  const [email, setEmail] = useState('owner@dayribbon.demo')
-  const [password, setPassword] = useState('demo1234')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [isDemo, setIsDemo] = useState(false)
+
+  useEffect(() => {
+    api('/api/health').then(h => setIsDemo(h.mode?.includes('demo'))).catch(() => {})
+  }, [])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -50,8 +56,8 @@ export default function Login() {
 
         {/* 로그인 폼 */}
         <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
-          <h1 className="text-xl font-bold text-slate-900 mb-1">데모 로그인</h1>
-          <p className="text-sm text-slate-500 mb-6">데모 계정 (비밀번호 공통: demo1234)</p>
+          <h1 className="text-xl font-bold text-slate-900 mb-1">로그인</h1>
+          <p className="text-sm text-slate-500 mb-6">{isDemo ? '데모 계정 (비밀번호 공통: demo1234)' : '계정으로 로그인하세요'}</p>
           <ErrorBox error={error} />
           <form onSubmit={submit} className="space-y-4">
             <div>
@@ -69,23 +75,26 @@ export default function Login() {
               {busy ? '로그인 중…' : '로그인'}
             </button>
           </form>
-          <div className="mt-6">
-            <div className="text-xs font-medium text-slate-500 mb-2">권한별 데모 계정</div>
-            <div className="space-y-1.5">
-              {DEMO_ACCOUNTS.map(a => (
-                <button key={a.email} type="button"
-                  onClick={() => { setEmail(a.email); setPassword('demo1234') }}
-                  className="w-full text-left border border-slate-200 rounded-lg px-3 py-2 hover:border-brand-400 hover:bg-brand-50/50 transition-colors">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-slate-800">{a.role} · {a.email}</span>
-                    <span className="text-[11px] text-slate-400">{a.desc}</span>
-                  </div>
-                </button>
-              ))}
+          {isDemo && (
+            <div className="mt-6">
+              <div className="text-xs font-medium text-slate-500 mb-2">권한별 데모 계정</div>
+              <div className="space-y-1.5">
+                {DEMO_ACCOUNTS.map(a => (
+                  <button key={a.email} type="button"
+                    onClick={() => { setEmail(a.email); setPassword('demo1234') }}
+                    className="w-full text-left border border-slate-200 rounded-lg px-3 py-2 hover:border-brand-400 hover:bg-brand-50/50 transition-colors">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-slate-800">{a.role} · {a.email}</span>
+                      <span className="text-[11px] text-slate-400">{a.desc}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-          <div className="mt-6 text-center">
-            <Link to="/" className="text-xs text-slate-400 hover:text-brand-600">← 서비스 소개로 돌아가기</Link>
+          )}
+          <div className="mt-6 text-center text-xs text-slate-400 space-x-3">
+            <span>계정이 없으신가요? <Link to="/signup" className="text-brand-600 hover:underline">회원가입</Link></span>
+            <Link to="/" className="hover:text-brand-600">← 서비스 소개</Link>
           </div>
         </div>
       </div>

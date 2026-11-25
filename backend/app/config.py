@@ -5,8 +5,25 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
+# 실행 환경: dev(기본) / production
+APP_ENV = os.getenv("APP_ENV", "dev")
+IS_PROD = APP_ENV == "production"
+
 # TiDB/MySQL 전환 시: mysql+pymysql://user:pass@host:4000/dayribbon
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATA_DIR / 'dayribbon.db'}")
+_db_url = os.getenv("DATABASE_URL")
+if IS_PROD and (not _db_url or _db_url.startswith("sqlite")):
+    raise RuntimeError(
+        "[dayribbon] 운영 환경(APP_ENV=production)에는 DATABASE_URL에 "
+        "TiDB/MySQL 접속 정보(mysql+pymysql://...)가 필요합니다. "
+        "SQLite·기본값으로는 운영 환경을 시작할 수 없습니다.")
+DATABASE_URL = _db_url or f"sqlite:///{DATA_DIR / 'dayribbon.db'}"
+
+# TiDB Cloud TLS CA 경로 (mysql 계열 접속 시 사용)
+DB_SSL_CA = os.getenv("DB_SSL_CA", "")
+
+# 커넥션 풀 (sqlite에는 pool_size 미적용)
+DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
+DB_POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "300"))
 
 TOKEN_TTL_HOURS = int(os.getenv("TOKEN_TTL_HOURS", str(24 * 7)))
 
@@ -15,10 +32,12 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1
 # 자동 분석 주기(초). 데모에서는 짧게 설정해 동작을 확인할 수 있게 한다.
 AUTO_ANALYSIS_INTERVAL_SEC = int(os.getenv("AUTO_ANALYSIS_INTERVAL_SEC", "120"))
 
-SEED_DEMO = os.getenv("SEED_DEMO", "1") == "1"
+# 운영 환경에서는 데모 데이터 시드·데모 이벤트 기본 비활성
+_seed_default = "0" if IS_PROD else "1"
+SEED_DEMO = os.getenv("SEED_DEMO", _seed_default) == "1" and not IS_PROD
 
 # 데모 전용 라우터 노출 여부. 실서비스에서는 반드시 0 (실데이터 오염 방지)
-DEMO_EVENTS_ENABLED = os.getenv("DEMO_EVENTS_ENABLED", "1") == "1"
+DEMO_EVENTS_ENABLED = os.getenv("DEMO_EVENTS_ENABLED", _seed_default) == "1" and not IS_PROD
 
 # --- LLM 분석 모듈 (미연결 시 규칙 기반 엔진으로 폴백) ---
 # 지원: 호환 OpenAI API 엔드포인트 (예: Ollama, OpenRouter, vLLM)

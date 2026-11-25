@@ -6,8 +6,7 @@ pandas>=2.2
 openpyxl>=3.1
 python-multipart>=0.0.9
 fpdf2>=2.7
+pymysql>=1.1
+alembic>=1.13
 pytest>=8.0
 httpx>=0.27
-# TiDB/MySQL 전환 시 활성화:
-# pymysql>=1.1
-# alembic>=1.13

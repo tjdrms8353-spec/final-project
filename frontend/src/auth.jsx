@@ -22,6 +22,15 @@ export function AuthProvider({ children }) {
     return res.user
   }
 
+  const signup = async (email, password, name) => {
+    const res = await api('/api/auth/register', { method: 'POST', body: { email, password, name } })
+    setToken(res.token)
+    setUser(res.user)
+    return res.user
+  }
+
+  const refreshUser = () => api('/api/auth/me').then(setUser).catch(() => {})
+
   const logout = async () => {
     try { await api('/api/auth/logout', { method: 'POST' }) } catch {}
     setToken(null)
@@ -29,7 +38,7 @@ export function AuthProvider({ children }) {
     window.location.href = '/'
   }
 
-  return <AuthCtx.Provider value={{ user, loading, login, logout }}>{children}</AuthCtx.Provider>
+  return <AuthCtx.Provider value={{ user, loading, login, signup, logout, refreshUser }}>{children}</AuthCtx.Provider>
 }
 
 export function useAuth() { return useContext(AuthCtx) }

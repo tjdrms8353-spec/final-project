@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from .models import (
     AnalysisResult, Company, CustomerMonthly, Decision, FinancialMonthly,
-    FollowUp, MarketSeries, MaterialPurchase, NewsItem, Notification,
+    FollowUp, MarketSeries, MaterialPurchase, Membership, NewsItem, Notification,
     NotificationSetting, ProductMonthly, Report, RiskAlert, User,
 )
 from .security import hash_password
@@ -119,7 +119,10 @@ def seed(db: Session):
         ("member@dayribbon.demo", "이실무", "MEMBER"),
         ("viewer@dayribbon.demo", "최감사", "VIEWER"),
     ]:
-        db.add(User(company_id=cid, email=email, password_hash=pw, name=name, role=role))
+        u = User(company_id=cid, email=email, password_hash=pw, name=name, role=role)
+        db.add(u)
+        db.flush()
+        db.add(Membership(user_id=u.id, company_id=cid, role=role))
 
     db.add(NotificationSetting(company_id=cid, email_address="ceo@hanbit-semitech.demo"))
 
