@@ -1,0 +1,25 @@
+# dayribbon 로컬/개발 배포 구성 (데모 검증용 — 실서비스 구성은 별도 검토)
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend-data:/data
+    environment:
+      SEED_DEMO: "1"            # 데모 데이터 시드 (실서비스: 0)
+      DEMO_EVENTS_ENABLED: "0"  # 데모 이벤트 라우터 (실서비스: 0)
+      CORS_ORIGINS: "http://localhost:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: ""       # nginx /api 프록시 사용
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  backend-data:

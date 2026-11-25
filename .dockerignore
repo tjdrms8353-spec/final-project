@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/__pycache__
+**/.venv
+**/data
+**/.pytest_cache
+.git
+*.log
+.tmp
+dist-verify
