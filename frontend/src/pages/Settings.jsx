@@ -131,6 +131,18 @@ export default function Settings() {
                 )}
               </label>
             ))}
+            {/* 외부 AI(LLM) 분석 전송 옵트인 — 미승인 시 기업 데이터를 외부 LLM에 보내지 않음 */}
+            <label className="md:col-span-2 flex items-start gap-3 border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
+              <input type="checkbox" disabled={!canWrite}
+                checked={!!company.allow_external_ai}
+                onChange={e => setCompany({ ...company, allow_external_ai: e.target.checked })}
+                className="mt-0.5 w-4 h-4 accent-brand-600" />
+              <span>
+                <b className="text-slate-800">외부 AI 분석 사용 허용</b><br />
+                체크하면 검증된 KPI·프로필 데이터를 외부 LLM 서비스에 전송해 AI 분석을 받습니다.
+                미체크 시 규칙 기반 엔진만 사용되며 기업 데이터가 외부로 전송되지 않습니다.
+              </span>
+            </label>
             {canWrite && <div className="md:col-span-2"><button className="bg-brand-600 text-white text-sm rounded-lg px-5 py-2.5 hover:bg-brand-700">저장</button></div>}
             {!canWrite && <div className="md:col-span-2 text-xs text-amber-600">읽기 전용 권한으로는 수정할 수 없습니다.</div>}
           </form>
@@ -256,8 +268,14 @@ export default function Settings() {
                   <tr key={c.name} className="border-t border-slate-100">
                     <td className="px-4 py-2.5 font-medium">{c.name}</td>
                     <td className="px-4 py-2.5 text-xs text-slate-500">{c.source}</td>
-                    <td className="px-4 py-2.5">
-                      <Badge tone={c.enabled ? 'green' : 'amber'}>{c.enabled ? '활성' : 'API 키/설정 대기'}</Badge>
+                    <td className="px-4 py-2.5 space-x-1">
+                      <Badge tone={c.enabled ? 'green' : 'amber'}>{c.enabled ? '활성' : '비활성'}</Badge>
+                      {c.configured && !c.license_verified && (
+                        <Badge tone="rose">이용 조건 미검증</Badge>
+                      )}
+                      {!c.configured && !c.enabled && (
+                        <Badge tone="slate">API 키/설정 대기</Badge>
+                      )}
                     </td>
                   </tr>
                 ))}

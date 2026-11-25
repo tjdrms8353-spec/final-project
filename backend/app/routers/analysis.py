@@ -20,7 +20,9 @@ def a_dict(a: AnalysisResult) -> dict:
         "title": a.title, "summary": a.summary, "details": a.details,
         "data_sources": a.data_sources, "basis_date": a.basis_date,
         "impact": a.impact, "uncertainty": a.uncertainty, "suggestions": a.suggestions,
-        "engine": a.engine, "engine_label": "규칙 기반 데모 분석",
+        "engine": a.engine,
+        "engine_label": (f"LLM 분석 ({a.engine[4:]})" if a.engine.startswith("llm:")
+                         else "규칙 기반 분석"),
         "status": a.status, "trigger": a.trigger,
         "created_at": a.created_at.isoformat() if a.created_at else "",
         "reviewed_by": a.reviewed_by,
@@ -50,7 +52,7 @@ def get_analysis(analysis_id: int, user: User = Depends(get_current_user),
 @router.post("/run")
 def run_analysis(user: User = Depends(require_write), db: Session = Depends(get_db)):
     """수동 분석 실행 — 규칙 기반 데모 엔진."""
-    result = run_pipeline(db, user.company_id, trigger="manual")
+    result = run_pipeline(db, user.company_id, trigger="manual", force=True)
     audit(db, user, "ANALYSIS_RUN", "analysis", "",
           f"수동 분석 실행: 분석 {result['new_analyses']}건, 알림 {result['new_alerts']}건")
     db.commit()

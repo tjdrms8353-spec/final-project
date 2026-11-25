@@ -9,7 +9,7 @@ from ..models import (
     Notification, ProductMonthly, Report, RiskAlert, User,
 )
 from ..services.analysis_engine import compute_kpis
-from ..utils import fmt_krw, month_range
+from ..utils import company_or_common, fmt_krw, month_range
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -47,7 +47,8 @@ def dashboard(user: User = Depends(get_current_user), db: Session = Depends(get_
     # 환율 추이 (12개월)
     fx = (
         db.query(MarketSeries)
-        .filter(MarketSeries.company_id == cid, MarketSeries.series_key == "USD_KRW",
+        .filter(company_or_common(MarketSeries.company_id, cid),
+                MarketSeries.series_key == "USD_KRW",
                 MarketSeries.month.in_(months))
         .order_by(MarketSeries.month).all()
     )
@@ -72,7 +73,7 @@ def dashboard(user: User = Depends(get_current_user), db: Session = Depends(get_
 
     # 뉴스/분석/보고서 최근
     news = (
-        db.query(NewsItem).filter(NewsItem.company_id == cid)
+        db.query(NewsItem).filter(company_or_common(NewsItem.company_id, cid))
         .order_by(NewsItem.published_at.desc()).limit(5).all()
     )
     analyses = (

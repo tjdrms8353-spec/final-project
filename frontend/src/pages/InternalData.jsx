@@ -4,7 +4,7 @@ import { useAuth } from '../auth'
 import { Badge, Card, EmptyState, ErrorBox, Loading, SectionTitle } from '../components/ui'
 
 const KINDS = [
-  { key: 'financial_monthly', label: '월별 재무', desc: 'month, revenue, operating_profit, raw_material_cost, labor_cost, other_cost, export_amount, import_amount, fx_avg_rate' },
+  { key: 'financial_monthly', label: '월별 재무', desc: 'month, revenue, operating_profit, raw_material_cost, labor_cost, other_cost, export_amount, import_amount, fx_avg_rate + (선택) net_income, assets, liabilities, inventory, borrowings, current_assets, current_liabilities' },
   { key: 'product_monthly', label: '제품별 실적', desc: 'month, product_name, revenue, cost' },
   { key: 'customer_monthly', label: '거래처별 실적', desc: 'month, customer_name, country, revenue' },
   { key: 'material_purchase', label: '원자재 구매', desc: 'month, material_name, amount_krw' },
@@ -26,7 +26,16 @@ const REC_KINDS = [
 ]
 
 const EMPTY_FORM = { month: '', revenue: '', operating_profit: '', raw_material_cost: '',
-  labor_cost: '', other_cost: '', export_amount: '', import_amount: '', fx_avg_rate: '' }
+  labor_cost: '', other_cost: '', export_amount: '', import_amount: '', fx_avg_rate: '',
+  net_income: '', assets: '', liabilities: '', inventory: '', borrowings: '',
+  current_assets: '', current_liabilities: '' }
+
+// 선택 입력 항목 — 비우면 NULL로 저장되어 KPI에서 '데이터 부족'으로 표시된다
+const OPTIONAL_FIELDS = [
+  ['net_income', '순이익'], ['assets', '자산총계'], ['liabilities', '부채총계'],
+  ['inventory', '재고자산'], ['borrowings', '차입금'],
+  ['current_assets', '유동자산'], ['current_liabilities', '유동부채'],
+]
 
 export default function InternalData() {
   const { user } = useAuth()
@@ -68,6 +77,8 @@ export default function InternalData() {
       const body = { month: form.month }
       ;['revenue','operating_profit','raw_material_cost','labor_cost','other_cost','export_amount','import_amount','fx_avg_rate']
         .forEach(k => body[k] = num(form[k]))
+      // 선택 항목: 비워두면 null(미입력)로 저장 — 0으로 대체하지 않는다
+      OPTIONAL_FIELDS.forEach(([k]) => { body[k] = form[k] === '' ? null : Number(form[k]) })
       const res = await api('/api/financial/monthly', { method: 'POST', body })
       setMsg(`저장 완료: ${form.month} (자동 분석 실행 — 알림 ${res.pipeline?.new_alerts ?? 0}건, 분석 ${res.pipeline?.new_analyses ?? 0}건 생성)`)
       setForm(EMPTY_FORM); setEditing(null)
@@ -183,6 +194,14 @@ export default function InternalData() {
                     className="mt-1 w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm" placeholder="2026-10" /></label>
                 {['revenue', 'operating_profit', 'raw_material_cost', 'labor_cost', 'other_cost', 'export_amount', 'import_amount', 'fx_avg_rate'].map(k => (
                   <label key={k} className="text-xs text-slate-500">{{ revenue: '매출', operating_profit: '영업이익', raw_material_cost: '원자재비', labor_cost: '인건비', other_cost: '기타비용', export_amount: '수출액', import_amount: '수입액', fx_avg_rate: '평균환율' }[k]} (원)
+                    <input type="number" step="any" value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })}
+                      className="mt-1 w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm" /></label>
+                ))}
+                <div className="col-span-2 md:col-span-4 text-xs font-semibold text-slate-500 border-t border-slate-100 pt-2">
+                  선택 항목 (비우면 미입력 — KPI에서 '데이터 부족'으로 표시)
+                </div>
+                {OPTIONAL_FIELDS.map(([k, label]) => (
+                  <label key={k} className="text-xs text-slate-500">{label} (원)
                     <input type="number" step="any" value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })}
                       className="mt-1 w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm" /></label>
                 ))}

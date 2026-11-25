@@ -7,13 +7,14 @@
 """
 from datetime import datetime
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..models import (
     AnalysisResult, Company, CustomerMonthly, FinancialMonthly, MarketSeries,
     NewsItem, Notification, NotificationSetting, ProductMonthly, RiskAlert,
 )
-from ..utils import fmt_krw, month_range, prev_month
+from ..utils import company_or_common, fmt_krw, month_range, prev_month
 
 DEMO_DISCLAIMER = (
     "본 분석은 실제 AI/LLM이 아닌 규칙 기반 데모 분석 엔진의 결과입니다. "
@@ -85,10 +86,11 @@ def compute_kpis(db: Session, company_id: int) -> dict:
         "months": len(fin),
     }
 
-    # 환율 시계열 최신/이전
+    # 환율 시계열 최신/이전 (공통 데이터 + 기업 전용 데이터)
     fx = (
         db.query(MarketSeries)
-        .filter(MarketSeries.company_id == company_id, MarketSeries.series_key == "USD_KRW")
+        .filter(company_or_common(MarketSeries.company_id, company_id),
+                MarketSeries.series_key == "USD_KRW")
         .order_by(MarketSeries.month)
         .all()
     )
@@ -137,10 +139,10 @@ def compute_kpis(db: Session, company_id: int) -> dict:
             for n, v in sorted(agg.items(), key=lambda x: -x[1]["revenue"])
         ]
 
-    # 주요 뉴스 sentiment 집계
+    # 주요 뉴스 sentiment 집계 (공통 수집 뉴스 + 기업 전용 뉴스)
     news = (
         db.query(NewsItem)
-        .filter(NewsItem.company_id == company_id)
+        .filter(company_or_common(NewsItem.company_id, company_id))
         .order_by(NewsItem.published_at.desc())
         .limit(30)
         .all()
@@ -294,11 +296,17 @@ def detect_risks(db: Session, company_id: int, trigger: str = "auto") -> list[Ri
         if a:
             created.append(a)
 
-    # 6) 부정적 중요 뉴스
+    # 6) 부정적 중요 뉴스 — 기업 전용은 NewsItem.importance, 공통 뉴스는 기업별 점수 사용
+    from ..models import CompanyNewsScore as _CNS
     neg = (
         db.query(NewsItem)
-        .filter(NewsItem.company_id == company_id, NewsItem.sentiment == "negative",
-                NewsItem.importance == "높음")
+        .outerjoin(_CNS, (_CNS.news_item_id == NewsItem.id)
+                   & (_CNS.company_id == company_id))
+        .filter(NewsItem.sentiment == "negative")
+        .filter(or_(
+            (NewsItem.company_id == company_id) & (NewsItem.importance == "높음"),
+            (NewsItem.company_id.is_(None)) & (_CNS.importance == "높음"),
+        ))
         .order_by(NewsItem.published_at.desc())
         .first()
     )
@@ -410,20 +418,89 @@ def run_analyses(db: Session, company_id: int, trigger: str = "manual") -> list[
     return created
 
 
-def run_pipeline(db: Session, company_id: int, trigger: str = "manual") -> dict:
-    """자동 분석 파이프라인: KPI 계산 → 위험 감지 → 분석 생성 → 알림 → 이력 저장."""
-    alerts = detect_risks(db, company_id, trigger)
-    # LLM 설정 시 LLM 우선, 미설정·실패 시 규칙 기반 엔진 폴백 (지연 import로 순환 참조 방지)
-    from .llm_provider import run_analysis as provider_run_analysis
-    analyses = provider_run_analysis(db, company_id, trigger)
+def _data_signature(db: Session, company_id: int) -> str:
+    """분석 입력 데이터 서명 — 동일 데이터의 중복 분석 방지용.
 
-    # "분석 완료" 알림 (설정이 켜져 있을 때만)
-    if analyses and _setting(db, company_id, "analysis_done"):
-        _mk_notification(
-            db, company_id, "analysis",
-            f"경영 분석 완료 ({len(analyses)}건)",
-            "새 분석 결과: " + "; ".join(a.title for a in analyses)
-            + " — AI 분석 메뉴에서 근거·불확실성을 확인하세요.")
+    건수가 아닌 '내용'을 해시한다 — 같은 월이라도 값이 바뀌면
+    서명이 달라져 재분석이 실행되고, 정말 동일한 데이터만 건너뛴다.
+    """
+    import hashlib
+
+    def md5(rows, fmt):
+        s = "|".join(fmt(r) for r in rows)
+        return hashlib.md5(s.encode()).hexdigest()[:12]
+
+    fins = (db.query(FinancialMonthly)
+            .filter(FinancialMonthly.company_id == company_id)
+            .order_by(FinancialMonthly.month).all())
+    fin_sig = md5(fins, lambda r: (
+        f"{r.month},{r.revenue},{r.operating_profit},{r.raw_material_cost},"
+        f"{r.labor_cost},{r.other_cost},{r.export_amount},{r.import_amount},"
+        f"{r.fx_avg_rate},{r.net_income},{r.assets},{r.liabilities},"
+        f"{r.inventory},{r.borrowings},{r.current_assets},{r.current_liabilities}"))
+
+    news = (db.query(NewsItem.id)
+            .filter(company_or_common(NewsItem.company_id, company_id))
+            .order_by(NewsItem.id).all())
+    news_sig = md5(news, lambda r: str(r[0]))
+
+    series = (db.query(MarketSeries)
+              .filter(company_or_common(MarketSeries.company_id, company_id))
+              .order_by(MarketSeries.series_key, MarketSeries.month).all())
+    series_sig = md5(series, lambda r: f"{r.series_key},{r.month},{r.value}")
+    return f"f{fin_sig}:n{news_sig}:s{series_sig}"
+
+
+def run_pipeline(db: Session, company_id: int, trigger: str = "manual",
+                 force: bool = False) -> dict:
+    """자동 분석 파이프라인: KPI 계산 → 위험 감지 → 분석 생성 → 알림 → 이력 저장.
+
+    동일 입력 데이터(서명)에 대해 같은 트리거로 이미 완료된 작업이 있으면
+    중복 분석을 건너뛴다. force=True면 무시하고 실행한다(수동 실행).
+    작업 이력은 analysis_jobs에 기록된다.
+    """
+    from ..models import AnalysisJob
+
+    sig = _data_signature(db, company_id)
+    dedup_key = f"{trigger}:{sig}"
+    if not force:
+        dup = (db.query(AnalysisJob)
+               .filter(AnalysisJob.company_id == company_id,
+                       AnalysisJob.dedup_key == dedup_key,
+                       AnalysisJob.status == "done")
+               .first())
+        if dup:
+            return {"trigger": trigger, "skipped": "duplicate",
+                    "ran_at": datetime.utcnow().isoformat(),
+                    "new_alerts": 0, "new_analyses": 0, "alert_titles": []}
+
+    job = AnalysisJob(company_id=company_id, trigger=trigger,
+                      dedup_key=dedup_key, status="running")
+    db.add(job)
+    db.flush()
+    try:
+        alerts = detect_risks(db, company_id, trigger)
+        # LLM 설정 시 LLM 우선, 미설정·실패 시 규칙 기반 엔진 폴백 (지연 import로 순환 참조 방지)
+        from .llm_provider import run_analysis as provider_run_analysis
+        analyses = provider_run_analysis(db, company_id, trigger)
+
+        # "분석 완료" 알림 (설정이 켜져 있을 때만)
+        if analyses and _setting(db, company_id, "analysis_done"):
+            _mk_notification(
+                db, company_id, "analysis",
+                f"경영 분석 완료 ({len(analyses)}건)",
+                "새 분석 결과: " + "; ".join(a.title for a in analyses)
+                + " — AI 분석 메뉴에서 근거·불확실성을 확인하세요.")
+
+        job.status = "done"
+        job.result_count = len(analyses)
+        job.finished_at = datetime.utcnow()
+    except Exception as e:
+        job.status = "failed"
+        job.error = str(e)[:1900]
+        job.finished_at = datetime.utcnow()
+        db.commit()
+        raise
 
     return {
         "trigger": trigger,

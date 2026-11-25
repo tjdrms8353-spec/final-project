@@ -56,6 +56,9 @@ def parse_rss(xml_text: str, feed_source: str) -> list[dict]:
 class NewsCollector:
     name = "news_rss"
     source = "RSS 뉴스 수집"
+    # Google 뉴스 RSS는 상업적 이용 조건이 불명확 — 운영 기본 비활성
+    # (docs/DATA_LICENSES.md, ALLOW_UNVERIFIED_SOURCES=1로 강제 가능)
+    license_verified = False
 
     @property
     def enabled(self) -> bool:

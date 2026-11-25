@@ -72,6 +72,7 @@ class CompanyUpdate(BaseModel):
     fx_settlement_ratio: Optional[float] = None
     interest_areas: Optional[str] = None
     risk_concerns: Optional[str] = None
+    allow_external_ai: Optional[bool] = None   # 외부 AI(LLM) 분석 전송 옵트인
 
 
 class UserUpdate(BaseModel):
@@ -141,6 +142,13 @@ class MonthlyFinancialIn(BaseModel):
     export_amount: float = 0
     import_amount: float = 0
     fx_avg_rate: float = 0
+    net_income: Optional[float] = None
+    assets: Optional[float] = None
+    liabilities: Optional[float] = None
+    inventory: Optional[float] = None
+    borrowings: Optional[float] = None
+    current_assets: Optional[float] = None
+    current_liabilities: Optional[float] = None
 
 
 class ProductMonthlyIn(BaseModel):

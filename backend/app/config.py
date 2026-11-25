@@ -44,6 +44,10 @@ DEMO_EVENTS_ENABLED = os.getenv("DEMO_EVENTS_ENABLED", _seed_default) == "1" and
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "")  # 예: http://localhost:11434/v1
 LLM_MODEL = os.getenv("LLM_MODEL", "")
+LLM_TIMEOUT_SEC = int(os.getenv("LLM_TIMEOUT_SEC", "30"))
+LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES", "1"))
+# 월간 LLM 토큰 예산 — 0이면 제한 없음. 초과 시 자동으로 규칙 엔진 폴백
+LLM_MONTHLY_TOKEN_BUDGET = int(os.getenv("LLM_MONTHLY_TOKEN_BUDGET", "0"))
 
 # --- 외부 데이터 수집 (정식 전환 B) ---
 EXIM_API_KEY = os.getenv("EXIM_API_KEY", "")      # 한국수출입은행 환율 API
@@ -56,6 +60,8 @@ COLLECT_INTERVAL_SEC = int(os.getenv("COLLECT_INTERVAL_SEC", str(6 * 3600)))
 COLLECT_TIMEOUT_SEC = int(os.getenv("COLLECT_TIMEOUT_SEC", "15"))
 
 # 뉴스 RSS 수집 — API 키 없이 동작. 쉼표로 여러 피드 지정 가능.
+# 참고: Google 뉴스 RSS는 상업적 이용 조건이 불명확 — 운영 환경에서는
+# ALLOW_UNVERIFIED_SOURCES=1 또는 허용이 확인된 피드로 교체 전까지 기본 비활성.
 NEWS_COLLECT_ENABLED = os.getenv("NEWS_COLLECT_ENABLED", "1") == "1"
 NEWS_RSS_URLS = os.getenv(
     "NEWS_RSS_URLS",
@@ -63,3 +69,16 @@ NEWS_RSS_URLS = os.getenv(
     "q=%ED%99%98%EC%9C%A8+OR+%EC%88%98%EC%B6%9C%EC%9E%85+OR+%EC%9B%90%EC%9E%90%EC%9E%AC"
     "&hl=ko&gl=KR&ceid=KR:ko",
 )
+
+# GDELT — 오픈 데이터(저작권 제한 완화, 출처 표기 권장). 키 불필요.
+GDELT_ENABLED = os.getenv("GDELT_ENABLED", "1") == "1"
+
+# 미국 공공 데이터 (무료 키 발급, 공공데이터 성격)
+FRED_API_KEY = os.getenv("FRED_API_KEY", "")      # FRED (연준 경제데이터)
+EIA_API_KEY = os.getenv("EIA_API_KEY", "")        # EIA (에너지 가격)
+
+# OpenDART — 기업 공시 (무료 키 발급). 수집 대상 corp_code 목록(쉼표 구분)
+DART_CORP_CODES = os.getenv("DART_CORP_CODES", "")
+
+# 운영 환경에서 이용 조건 미검증 공급처를 강제 활성화할 때만 1로 설정
+ALLOW_UNVERIFIED_SOURCES = os.getenv("ALLOW_UNVERIFIED_SOURCES", "0") == "1"

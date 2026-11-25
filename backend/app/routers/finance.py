@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import Company, MarketSeries, User
+from ..utils import company_or_common
 
 router = APIRouter(prefix="/api/finance", tags=["finance"])
 
@@ -26,7 +27,7 @@ IMPACT_NOTES = {
 def list_series(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = (
         db.query(MarketSeries)
-        .filter(MarketSeries.company_id == user.company_id)
+        .filter(company_or_common(MarketSeries.company_id, user.company_id))
         .order_by(MarketSeries.series_key, MarketSeries.month)
         .all()
     )
@@ -59,7 +60,7 @@ def get_series(series_key: str, user: User = Depends(get_current_user),
                db: Session = Depends(get_db)):
     rows = (
         db.query(MarketSeries)
-        .filter(MarketSeries.company_id == user.company_id,
+        .filter(company_or_common(MarketSeries.company_id, user.company_id),
                 MarketSeries.series_key == series_key)
         .order_by(MarketSeries.month).all()
     )

@@ -36,6 +36,9 @@ MONTHLY_COLS = {
     "raw_material_cost": "raw_material_cost", "labor_cost": "labor_cost",
     "other_cost": "other_cost", "export_amount": "export_amount",
     "import_amount": "import_amount", "fx_avg_rate": "fx_avg_rate",
+    "net_income": "net_income", "assets": "assets", "liabilities": "liabilities",
+    "inventory": "inventory", "borrowings": "borrowings",
+    "current_assets": "current_assets", "current_liabilities": "current_liabilities",
 }
 
 KIND_MODELS = {
@@ -55,11 +58,16 @@ KIND_LABEL = {
 TEMPLATE = pd.DataFrame(columns=[
     "month", "revenue", "operating_profit", "raw_material_cost",
     "labor_cost", "other_cost", "export_amount", "import_amount", "fx_avg_rate",
+    "net_income", "assets", "liabilities", "inventory", "borrowings", "current_assets", "current_liabilities",
 ])
 TEMPLATE.loc[0] = ["2026-10", 9000000000, 900000000, 5200000000, 1200000000,
-                   1680000000, 5600000000, 3400000000, 1420.0]
+                   1680000000, 5600000000, 3400000000, 1420.0,
+                   620000000, 30000000000, 12000000000, 4500000000, 8000000000,
+                   18000000000, 9000000000]
 TEMPLATE.loc[1] = ["2026-11", 8800000000, 850000000, 5100000000, 1180000000,
-                   1650000000, 5500000000, 3300000000, 1435.0]
+                   1650000000, 5500000000, 3300000000, 1435.0,
+                   580000000, 30500000000, 12500000000, 4700000000, 8000000000,
+                   18500000000, 9500000000]
 
 
 @router.get("/monthly")
@@ -76,7 +84,10 @@ def list_monthly(months: int = 36, user: User = Depends(get_current_user),
          "operating_profit": r.operating_profit, "raw_material_cost": r.raw_material_cost,
          "labor_cost": r.labor_cost, "other_cost": r.other_cost,
          "export_amount": r.export_amount, "import_amount": r.import_amount,
-         "fx_avg_rate": r.fx_avg_rate}
+         "fx_avg_rate": r.fx_avg_rate, "net_income": r.net_income,
+         "assets": r.assets, "liabilities": r.liabilities,
+         "inventory": r.inventory, "borrowings": r.borrowings,
+         "current_assets": r.current_assets, "current_liabilities": r.current_liabilities}
         for r in rows
     ]
 
@@ -255,7 +266,17 @@ COL_ALIAS = {
     "거래처": "customer_name", "거래처명": "customer_name", "국가": "country",
     "원자재명": "material_name", "원자재품목": "material_name",
     "금액": "amount_krw", "비용": "amount_krw", "원가": "cost",
+    "순이익": "net_income", "당기순이익": "net_income",
+    "자산": "assets", "자산총계": "assets",
+    "부채": "liabilities", "부채총계": "liabilities",
+    "재고": "inventory", "재고자산": "inventory",
+    "차입금": "borrowings", "차입": "borrowings",
+    "유동자산": "current_assets", "유동부채": "current_liabilities",
 }
+
+# NULL 허용 재무 컬럼 — 미입력 시 0이 아닌 NULL로 저장해 "데이터 부족"과 구분한다
+NULLABLE_COLS = {"net_income", "assets", "liabilities", "inventory", "borrowings",
+                 "current_assets", "current_liabilities"}
 
 
 def _required_cols(data_kind: str) -> set:
@@ -292,7 +313,9 @@ def _prepare_df(df: pd.DataFrame, data_kind: str) -> tuple[pd.DataFrame, list[st
     num_cols = [c for c in df.columns if c not in ("month", "product_name", "customer_name",
                                                     "material_name", "country", "currency")]
     for c in num_cols:
-        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+        if c not in NULLABLE_COLS:
+            df[c] = df[c].fillna(0)
 
     total_rows = len(df)
     df = df[df["month"].astype(str).str.match(r"^\d{4}-\d{2}$")]
@@ -357,7 +380,13 @@ async def upload(file: UploadFile = File(...), data_kind: str = "financial_month
             if k in model.__table__.columns and k in df.columns and df[k].notna().all():
                 filters[k] = str(row.get(k, ""))
         existing = db.query(model).filter_by(**filters).first()
-        values = {c: (float(row[c]) if c in num_cols else str(row.get(c, "")))
+        def _val(c):
+            if c in num_cols:
+                if c in NULLABLE_COLS and pd.isna(row[c]):
+                    return None
+                return float(row[c]) if pd.notna(row[c]) else 0.0
+            return str(row.get(c, ""))
+        values = {c: _val(c)
                   for c in df.columns if c in model.__table__.columns and c != "id"}
         values = {k: v for k, v in values.items() if k != "month"}
         if existing:

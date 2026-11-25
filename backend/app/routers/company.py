@@ -31,6 +31,7 @@ def company_dict(c: Company) -> dict:
         "annual_revenue": c.annual_revenue, "annual_raw_material_cost": c.annual_raw_material_cost,
         "fx_settlement_ratio": c.fx_settlement_ratio,
         "interest_areas": c.interest_areas, "risk_concerns": c.risk_concerns,
+        "allow_external_ai": c.allow_external_ai,
         "annual_revenue_fmt": fmt_krw(c.annual_revenue),
         "annual_raw_material_cost_fmt": fmt_krw(c.annual_raw_material_cost),
     }
@@ -123,6 +124,13 @@ def update_company(body: CompanyUpdate, user: User = Depends(require_write),
         setattr(c, k, v)
     audit(db, user, "COMPANY_UPDATE", "company", c.id, f"수정 항목: {', '.join(data.keys())}")
     db.commit()
+    # 프로필 변경 → 자동 재분석 트리거 (지시서 §18). 사용자 직접 변경이므로 강제 실행.
+    try:
+        from ..services.analysis_engine import run_pipeline
+        run_pipeline(db, c.id, trigger="profile", force=True)
+        db.commit()
+    except Exception:
+        db.rollback()   # 재분석 실패가 프로필 저장을 실패시키지 않음
     return company_dict(c)
 
 

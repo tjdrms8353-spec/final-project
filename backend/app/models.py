@@ -32,6 +32,8 @@ class Company(Base):
     fx_settlement_ratio: Mapped[float] = mapped_column(Float, default=0)  # 외화 결제 비중
     interest_areas: Mapped[str] = mapped_column(Text, default="")
     risk_concerns: Mapped[str] = mapped_column(Text, default="")
+    # 기업별 외부 AI(LLM) 전송 승인 — 미승인 시 실데이터를 외부 LLM에 보내지 않음
+    allow_external_ai: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     users = relationship("User", back_populates="company")
@@ -128,6 +130,14 @@ class FinancialMonthly(Base):
     export_amount: Mapped[float] = mapped_column(Float, default=0)
     import_amount: Mapped[float] = mapped_column(Float, default=0)
     fx_avg_rate: Mapped[float] = mapped_column(Float, default=0)  # 당월 평균 원/달러 환율
+    # 확장 재무 항목 (전환 C KPI) — NULL은 "미입력"을 의미. 0으로 대체하지 않는다.
+    net_income: Mapped[float | None] = mapped_column(Float, nullable=True)     # 순이익
+    assets: Mapped[float | None] = mapped_column(Float, nullable=True)         # 자산총계
+    liabilities: Mapped[float | None] = mapped_column(Float, nullable=True)    # 부채총계
+    inventory: Mapped[float | None] = mapped_column(Float, nullable=True)      # 재고자산
+    borrowings: Mapped[float | None] = mapped_column(Float, nullable=True)     # 차입금
+    current_assets: Mapped[float | None] = mapped_column(Float, nullable=True)      # 유동자산
+    current_liabilities: Mapped[float | None] = mapped_column(Float, nullable=True) # 유동부채
 
     company = relationship("Company", back_populates="financial_monthly")
 
@@ -207,6 +217,94 @@ class NewsItem(Base):
     why_relevant: Mapped[str] = mapped_column(Text, default="")
     published_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class CompanyNewsScore(Base):
+    """기업별 뉴스 관련성 — 공통 뉴스(company_id=NULL)와 기업을 연결.
+
+    동일한 외부 뉴스를 기업 수만큼 복제하지 않고, 관련성 점수·중요도·
+    영향 분석만 기업별로 저장한다.
+    """
+
+    __tablename__ = "company_news_scores"
+    __table_args__ = (
+        UniqueConstraint("company_id", "news_item_id", name="uq_company_news_score"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    news_item_id: Mapped[int] = mapped_column(ForeignKey("news_items.id"), index=True)
+    relevance_score: Mapped[float] = mapped_column(Float, default=0)
+    importance: Mapped[str] = mapped_column(String(20), default="보통")
+    impact_on_company: Mapped[str] = mapped_column(Text, default="")
+    why_relevant: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    news_item = relationship("NewsItem")
+
+
+class CollectorState(Base):
+    """수집기별 스케줄·상태 — 마지막 성공 시각으로 최신성 판단."""
+
+    __tablename__ = "collector_states"
+
+    name: Mapped[str] = mapped_column(String(50), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    interval_sec: Mapped[int] = mapped_column(Integer, default=6 * 3600)
+    last_run_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    last_success_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    next_run_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    last_error: Mapped[str] = mapped_column(Text, default="")
+    cursor: Mapped[str] = mapped_column(String(200), default="")  # 증분 수집 위치
+
+
+class CollectionRun(Base):
+    """수집 실행 이력 — 실패 시 마지막 정상 데이터는 그대로 유지됨."""
+
+    __tablename__ = "collection_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    collector: Mapped[str] = mapped_column(String(50), index=True)
+    trigger: Mapped[str] = mapped_column(String(50), default="schedule")  # schedule/manual
+    status: Mapped[str] = mapped_column(String(20), default="ok")  # ok/error
+    series_count: Mapped[int] = mapped_column(Integer, default=0)
+    news_count: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str] = mapped_column(Text, default="")
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    finished_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+
+class LlmCall(Base):
+    """LLM 호출 이력 — 비용·사용량 추적 (토큰 단위, 금액은 확정값 아님)."""
+
+    __tablename__ = "llm_calls"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True, nullable=True)
+    purpose: Mapped[str] = mapped_column(String(50), default="analysis")
+    model: Mapped[str] = mapped_column(String(100), default="")
+    prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(30), default="ok")  # ok/error/skipped_budget/fallback
+    error: Mapped[str] = mapped_column(Text, default="")
+    latency_ms: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
+class AnalysisJob(Base):
+    """분석 작업 이력 — 자동 분석 트리거의 중복 방지와 상태 추적."""
+
+    __tablename__ = "analysis_jobs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    trigger: Mapped[str] = mapped_column(String(50), default="manual")
+    dedup_key: Mapped[str] = mapped_column(String(128), index=True)  # 트리거+데이터 서명
+    status: Mapped[str] = mapped_column(String(20), default="done")  # done/failed/skipped
+    result_count: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    finished_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
 
 class AnalysisResult(Base):

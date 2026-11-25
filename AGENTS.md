@@ -9,7 +9,7 @@
 
 ## 프로젝트 구조
 - `backend/` — FastAPI + SQLAlchemy (SQLite, 정식 전환 시 TiDB/MySQL 대비 ORM 분리)
-  - `app/models.py` — 전체 테이블 (18개)
+  - `app/models.py` — 전체 테이블 (27개)
   - `app/routers/` — 기능별 API 라우터
   - `app/services/` — 분석엔진(규칙 기반)·시뮬레이션·보고서 PDF
   - `app/seed.py` — 데모 데이터 생성기

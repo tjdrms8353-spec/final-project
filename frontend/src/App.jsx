@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard'
 import News from './pages/News'
 import Finance from './pages/Finance'
 import InternalData from './pages/InternalData'
+import Kpi from './pages/Kpi'
 import AiAnalysis from './pages/AiAnalysis'
 import Simulation from './pages/Simulation'
 import Alerts from './pages/Alerts'
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="news" element={<News />} />
         <Route path="finance" element={<Finance />} />
         <Route path="data" element={<InternalData />} />
+        <Route path="kpi" element={<Kpi />} />
         <Route path="analysis" element={<AiAnalysis />} />
         <Route path="simulation" element={<Simulation />} />
         <Route path="alerts" element={<Alerts />} />

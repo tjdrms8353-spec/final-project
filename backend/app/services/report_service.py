@@ -10,7 +10,7 @@ from ..models import (
     AnalysisResult, AuditLog, Company, Decision, FollowUp, FinancialMonthly,
     MarketSeries, NewsItem, Notification, Report, RiskAlert,
 )
-from ..utils import fmt_krw, month_range, prev_month
+from ..utils import company_or_common, fmt_krw, month_range, prev_month
 from .analysis_engine import compute_kpis
 
 REPORT_DIR = DATA_DIR / "reports"
@@ -37,7 +37,7 @@ def build_report_content(db: Session, company_id: int, period: str) -> dict:
 
     news = (
         db.query(NewsItem)
-        .filter(NewsItem.company_id == company_id)
+        .filter(company_or_common(NewsItem.company_id, company_id))
         .order_by(NewsItem.published_at.desc())
         .limit(8)
         .all()

@@ -135,12 +135,12 @@ dayribbon/
 ├── backend/
 │   ├── app/
 │   │   ├── routers/   # API 라우터 (기능별 분리, collection 포함)
-│   │   ├── services/  # 분석엔진/시뮬레이션/보고서/llm_provider
-│   │   │   └── collectors/  # EXIM 환율·ECOS 금리·RSS 뉴스 수집기
-│   │   ├── models.py  # SQLAlchemy 모델 (22테이블, TiDB 전환 대비)
+│   │   ├── services/  # 분석엔진/시뮬레이션/보고서/llm_provider/kpi·risk·collection
+│   │   │   └── collectors/  # EXIM·ECOS·RSS·GDELT·FRED·EIA·DART 수집기
+│   │   ├── models.py  # SQLAlchemy 모델 (27테이블, TiDB 전환 대비)
 │   │   └── seed.py    # 데모 데이터 생성 (SEED_DEMO=1일 때만)
 │   ├── alembic/       # DB 마이그레이션
-│   ├── tests/         # pytest (52개)
+│   ├── tests/         # pytest (94개)
 │   └── run.py
 ├── scripts/           # sync-local(동기화)·check-secrets(민감정보 검사)
 ├── sample-data/       # 업로드 테스트용 CSV

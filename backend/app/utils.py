@@ -1,5 +1,16 @@
 from datetime import date
 
+from sqlalchemy import or_
+
+
+def company_or_common(column, company_id):
+    """공통 외부 데이터(company_id=NULL)와 기업 전용 데이터를 함께 조회하는 필터.
+
+    시장 시계열·수집 뉴스는 모든 기업이 공유하므로 company_id=NULL로 저장되고,
+    데모 시드 등 기업 전용 데이터는 기존처럼 company_id로 저장된다.
+    """
+    return or_(column == company_id, column.is_(None))
+
 
 def month_range(n: int, end: date | None = None) -> list[str]:
     """최근 n개월의 'YYYY-MM' 리스트 (오름차순). end 미지정 시 이번 달."""

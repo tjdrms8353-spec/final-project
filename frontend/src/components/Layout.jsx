@@ -9,6 +9,7 @@ const NAV = [
   { to: 'news', label: '뉴스 · 산업 동향', icon: '📰' },
   { to: 'finance', label: '금융 · 경제 지표', icon: '📈' },
   { to: 'data', label: '내부 데이터 관리', icon: '🗄️' },
+  { to: 'kpi', label: '경영 KPI 분석', icon: '🎯' },
   { to: 'analysis', label: 'AI 경영 분석', icon: '🤖' },
   { to: 'simulation', label: '위험 시뮬레이션', icon: '🎛️' },
   { to: 'alerts', label: '알림 센터', icon: '🔔' },

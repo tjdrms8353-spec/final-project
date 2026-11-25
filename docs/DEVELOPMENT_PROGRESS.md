@@ -216,3 +216,94 @@
 - EXIM_API_KEY — 환율 실수집 (구현 완료·키 대기)
 - ECOS_API_KEY — 기준금리 실수집 (구현 완료·키 대기)
 - NEWS_API_KEY — 검색 API 뉴스 보강 (RSS로 기본 동작 중)
+
+---
+
+## 정식 전환 단계 B 보완 — 공통 데이터·공급처·스케줄 (완료)
+
+### 공통 외부 데이터 저장 구조 (§2)
+- `market_series`·`news_items` 공통 데이터를 `company_id=NULL`로 1회 저장 — 기업 수만큼 복제 금지
+- `company_news_scores` 테이블 신설: 기업별 뉴스 관련도·중요도·영향 점수 분리 저장
+- `utils.company_or_common()` 헬퍼로 기업+공통 범위 쿼리 통일, 소비자(뉴스/대시보드/금융/분석/보고서) 전부 갱신
+- 뉴스 API는 공통 뉴스 + 기업 점수를 outerjoin/coalesce로 병합 — 중요도 점수 테이블에서 조회
+- 수집 후 생성된 기업도 기존 공통 뉴스 점수가 채워지도록 `run_collector` 보완
+
+### 수집기별 스케줄·이력 (§5)
+- `collector_states`: 수집기별 주기(`interval_sec`)·활성화·`last_run_at`/`last_success_at`/`next_run_at`/`cursor`·`last_error`
+- `collection_runs`: 수집 이력 (시작/종료·처리·신규·오류·상태)
+- `due_collectors()`/`run_due_collectors()` — 스케줄러가 60초마다 기한 도래 수집기만 실행
+- 기업 관리자 수동 실행 제한: 기업당 1시간 1회 (`manual_run_allowed`/`mark_manual_run`, 초과 시 429)
+- 운영 게이팅: `IS_PROD` + `ALLOW_UNVERIFIED_SOURCES`로 미검증 공급처(RSS) 운영 기본 비활성
+- 실패 시 마지막 정상 데이터 유지 + `stale` 최신성 표시
+
+### 신규 데이터 공급처 (§3) — `services/collectors/global_sources.py`
+- `GdeltCollector`: 키 불필요 실구현 (DOC 2.0 artlist, 한국어 경제 뉴스 → 공통 뉴스)
+- `FredCollector`: `FRED_API_KEY` — 원/달러·미 금리·WTI → 시계열
+- `EiaCollector`: `EIA_API_KEY` — WTI 월 시계열
+- `DartCollector`: `DART_API_KEY`+`DART_CORP_CODES` — 공시 → 뉴스 매핑
+- 공식 문서 기반 어댑터 + Mock 테스트 검증. 키 없으면 `enabled=False` — 스텁이 아닌 실구현
+
+### 이용 조건 문서화 (§4) — `docs/DATA_LICENSES.md`
+- 공급처별 상업적 이용·저장·가공·AI 분석·재배포·출처 표시·호출 제한·공식 URL·검토일 기록
+- Google 뉴스 RSS: 조건 미확정 → 운영 기본 비활성 + 명시적 플래그로만 활성화
+
+---
+
+## 정식 전환 단계 C — BI·AI 경영 분석 (완료)
+
+### 기업 내부 데이터 확장 (§8)
+- `FinancialMonthly`에 `net_income`·`assets`·`liabilities`·`inventory`·`borrowings`·`current_assets`·`current_liabilities` 추가 — nullable로 "미입력"과 "0" 구분
+- 재무 입력 API·스키마·CSV 템플릿·한글 컬럼 별칭 확장, 업로드 미리보기/검증 재사용
+- 기업 내부 데이터를 가상 값으로 자동 보완하지 않음 (미입력은 NULL 유지)
+
+### KPI 계산 (§9) — `services/kpi_service.py` + `GET /api/kpi`
+- 16개 지표 (매출/영업이익/순이익/이익률/성장률/비용증가율/부채비율/유동비율/제조원가/원자재비/재고회전율/제품수익성/거래처의존도/수출입비중/외화결제비중)
+- Decimal 기반, 각 지표 `ok`/`insufficient_data`/`not_computable` 상태 + 계산식·기준일·단위 메타
+- 데이터 없으면 0 대체 금지, 분모 0은 not_computable
+
+### 기업 맞춤 위험 평가 (§10·§15) — `services/risk_service.py`
+- 8개 위험 카테고리, 수출입 구조(수출 중심/수입 중심)에 따라 환율 변동 해석이 상반되게 적용
+- 등급: 정상/관심/주의/위험/심각 + `판단 보류`(데이터 부족) — 산정 기준 `ANALYSIS_MODEL.md` 문서화
+- 위험 근거·확인 가능 수치를 결과에 포함
+
+### 실제 LLM 모듈 (§11·§12·§21·§22) — `services/llm_provider.py`
+- OpenAI 호환 `chat/completions` 실호출 — 공급처 교체 가능 어댑터
+- Pydantic `LlmAnalysisResponse`로 구조화 JSON 검증, 타임아웃·429/5xx 지수 백오프 재시도
+- `llm_calls` 기록: 토큰·지연·상태. `LLM_MONTHLY_TOKEN_BUDGET` 초과 시 자동 폴백
+- 기업 옵트인(`allow_external_ai`) 없으면 호출 차단 — 미승인 기업 데이터 외부 전송 없음
+- 인젝션 가드: 외부 데이터 `untrusted_data` 격리 + 지시형 패턴 제거, 최소 데이터만 전송
+- LLM 실패/미설정 시 규칙 기반 폴백 — `engine` 필드로 LLM/규칙 엔진 구분 표시
+
+### 자동 분석 (§18) — `analysis_jobs`
+- 트리거: 내부 데이터 업로드·프로필 변경·중요 수집 데이터(신규 시계열/고관련 뉴스)·24h 스케줄
+- 데이터 내용 해시 서명 `dedup_key`로 중복 분석 방지 (건수만 비교해 값 변경을 놓치던 문제 수정)
+- 작업 상태·실패 이력 저장, 결과는 기존 알림 센터 연동
+
+### 프론트엔드 (§20)
+- `pages/Kpi.jsx` 신설: KPI 값 + `insufficient_data` 배지, `/app/kpi` 라우트·네비 추가
+- Settings: `allow_external_ai` 옵트인 토글, 신규 수집기 상태 표시
+- InternalData: 신규 7개 재무 필드 입력 폼·테이블
+- 분석 결과의 LLM/규칙 엔진 구분 표시 유지
+
+### 검증
+- pytest **94/94 통과** (USB 소스에서 직접 실행 — `docs/TEST_REPORT.md`)
+- 마이그레이션 `8d32133b9658`(공통 데이터·수집 작업)·`e6b6ad5682bd`(재무 확장) upgrade/downgrade/upgrade 검증
+- 실기동 확인: `/api/kpi` 16개 지표(미입력은 insufficient_data), 위험 API 관심 27.1(수출 기업), 수집 상태 7개 수집기
+- 프론트엔드 vite build 통과
+
+### 발생한 오류·해결 (§31)
+- 로컬 dev DB가 create_all 생성으로 alembic 버전 없음 → `alembic stamp 8d32133b9658` 후 `upgrade head` 적용
+- `run_collection`이 수집기 상태 행을 생성하지 않아 수동 실행이 차단됨 → `ensure_collector_states` 호출 추가
+- 분석 중복 서명이 건수만 비교해 값 변경을 놓침 → 데이터 내용 해시로 서명 변경
+- `_data_signature`가 `scalar()`로 리스트를 받아 오류 → `first()` 사용으로 수정
+- GDELT 실호출: 200 응답·기사 수신 확인했으나 이후 공급처 레이트리밋(429·타임아웃) — 오류 경로 정상 기록 확인, 저장 경로 재검증 대기
+
+### 외부 설정 대기
+- LLM_API_KEY/LLM_BASE_URL/LLM_MODEL — 실제 LLM 호출 (구현·Mock 검증 완료)
+- EXIM_API_KEY·ECOS_API_KEY·FRED_API_KEY·EIA_API_KEY·DART_API_KEY+DART_CORP_CODES — 실수집
+- DATABASE_URL·DB_SSL_CA — TiDB 실접속 (SQLite 마이그레이션 검증 완료)
+- 관세청·KOSIS — 공급처 미구현 (키 발급 후 구현 예정 — `DATA_SOURCES.md`)
+- GDELT 저장 경로 실수집 재확인 — 공급처 레이트리밋 해소 후
+
+### 다음 단계
+- 단계 D(발송·운영)는 지시 있을 때까지 대기 — 임의 진행하지 않음
