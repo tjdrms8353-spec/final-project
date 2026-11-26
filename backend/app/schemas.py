@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Literal, Optional
 
 
 class LoginRequest(BaseModel):
@@ -29,6 +29,7 @@ class PasswordResetConfirm(BaseModel):
 
 class CompanyCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
+    business_type: Literal["corporation", "sole_proprietor"] = "corporation"
     industry: str = ""
     size: str = ""
     products: str = ""
@@ -59,6 +60,7 @@ class InviteAccept(BaseModel):
 
 class CompanyUpdate(BaseModel):
     name: Optional[str] = None
+    business_type: Optional[Literal["corporation", "sole_proprietor"]] = None
     industry: Optional[str] = None
     size: Optional[str] = None
     products: Optional[str] = None

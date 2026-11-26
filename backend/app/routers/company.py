@@ -25,6 +25,7 @@ INVITE_TTL_DAYS = 7
 def company_dict(c: Company) -> dict:
     return {
         "id": c.id, "name": c.name, "industry": c.industry, "size": c.size,
+        "business_type": c.business_type,
         "products": c.products, "key_customers": c.key_customers,
         "export_countries": c.export_countries, "import_countries": c.import_countries,
         "raw_materials": c.raw_materials, "export_import_ratio": c.export_import_ratio,

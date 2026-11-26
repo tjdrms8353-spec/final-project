@@ -21,6 +21,8 @@ class Company(Base):
     name: Mapped[str] = mapped_column(String(200), default="")
     industry: Mapped[str] = mapped_column(String(100), default="")
     size: Mapped[str] = mapped_column(String(50), default="")
+    # 사업자 유형 — corporation(법인사업자) | sole_proprietor(개인사업자)
+    business_type: Mapped[str] = mapped_column(String(20), default="corporation")
     products: Mapped[str] = mapped_column(Text, default="")
     key_customers: Mapped[str] = mapped_column(Text, default="")
     export_countries: Mapped[str] = mapped_column(Text, default="")

@@ -48,6 +48,23 @@ def test_company_create_assigns_owner(client):
     assert any(c["company_id"] == cid and c["active"] for c in mine)
 
 
+def test_company_business_type(client):
+    """사업자 유형(법인/개인사업자) — 등록·수정·유효성 검증."""
+    r = _signup(client, "biztype@test.dev")
+    h = _headers(r.json()["token"])
+    # 미지정 시 법인사업자 기본값
+    r = client.post("/api/companies", headers=h, json={"name": "기본기업"})
+    assert r.json()["company"]["business_type"] == "corporation"
+    # 개인사업자로 변경
+    r = client.put("/api/company", headers=h, json={"business_type": "sole_proprietor"})
+    assert r.status_code == 200
+    assert r.json()["business_type"] == "sole_proprietor"
+    assert client.get("/api/company", headers=h).json()["business_type"] == "sole_proprietor"
+    # 잘못된 값 거부
+    r = client.put("/api/company", headers=h, json={"business_type": "freelancer"})
+    assert r.status_code == 422
+
+
 def test_new_company_has_no_demo_data(client):
     r = _signup(client, "fresh@test.dev")
     h = _headers(r.json()["token"])

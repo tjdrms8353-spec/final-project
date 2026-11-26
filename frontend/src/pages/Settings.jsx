@@ -4,7 +4,7 @@ import { useAuth } from '../auth'
 import { Badge, Card, ErrorBox, Loading, SectionTitle } from '../components/ui'
 
 const FIELDS = [
-  ['name', '기업명'], ['industry', '업종'], ['size', '기업 규모'],
+  ['name', '기업명'], ['business_type', '사업자 유형'], ['industry', '업종'], ['size', '기업 규모'],
   ['products', '주요 생산 제품 (쉼표 구분)'], ['key_customers', '주요 거래처'],
   ['export_countries', '수출 국가'], ['import_countries', '수입 국가'],
   ['raw_materials', '주요 원자재'], ['export_import_ratio', '수출입 비중'],
@@ -123,6 +123,13 @@ export default function Settings() {
                   <textarea rows={2} disabled={!canWrite} value={company[k] || ''}
                     onChange={e => setCompany({ ...company, [k]: e.target.value })}
                     className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm disabled:bg-slate-50" />
+                ) : k === 'business_type' ? (
+                  <select disabled={!canWrite} value={company[k] || 'corporation'}
+                    onChange={e => setCompany({ ...company, [k]: e.target.value })}
+                    className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-50">
+                    <option value="corporation">법인사업자</option>
+                    <option value="sole_proprietor">개인사업자</option>
+                  </select>
                 ) : (
                   <input type={['annual_revenue', 'annual_raw_material_cost'].includes(k) ? 'number' : 'text'}
                     step="any" disabled={!canWrite} value={company[k] ?? ''}

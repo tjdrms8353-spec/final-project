@@ -18,6 +18,7 @@ import Decisions from './pages/Decisions'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import AuditLog from './pages/AuditLog'
+import Ops from './pages/Ops'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
         <Route path="audit" element={<AuditLog />} />
+        <Route path="ops" element={<Ops />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -17,6 +17,7 @@ const NAV = [
   { to: 'reports', label: '월간 경영 보고서', icon: '📄' },
   { to: 'settings', label: '기업 설정', icon: '⚙️' },
   { to: 'audit', label: '감사 추적 로그', icon: '🧾' },
+  { to: 'ops', label: '운영 상태', icon: '🖥️', admin: true },
 ]
 
 const ROLE_LABEL = { OWNER: '대표/최고관리자', ADMIN: '관리자', MEMBER: '실무 담당자', VIEWER: '읽기 전용(감사)' }
@@ -38,6 +39,7 @@ export default function Layout() {
   }, [])
 
   const isViewer = user?.role === 'VIEWER'
+  const isAdmin = user?.role === 'OWNER' || user?.role === 'ADMIN'
 
   return (
     <div className="h-screen flex bg-slate-100">
@@ -48,7 +50,7 @@ export default function Layout() {
           <div className="text-[11px] text-brand-200 mt-0.5">AI 맞춤형 경영 분석 · 데모</div>
         </div>
         <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-0.5">
-          {NAV.map(n => (
+          {NAV.filter(n => !n.admin || isAdmin).map(n => (
             <NavLink key={n.to} to={n.to} onClick={() => setOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${

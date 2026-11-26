@@ -6,6 +6,7 @@ import { ErrorBox } from '../components/ui'
 
 const FIELDS = [
   ['name', '기업명 *', 'text'],
+  ['business_type', '사업자 유형', 'select'],
   ['industry', '업종', 'text'],
   ['size', '기업 규모 (예: 중소기업 · 직원 50명)', 'text'],
   ['products', '주요 생산 제품', 'text'],
@@ -114,12 +115,21 @@ export default function Onboarding() {
           <h2 className="text-sm font-bold text-slate-800 mb-1">새 기업 등록</h2>
           <p className="text-xs text-slate-400 mb-4">기업명만 필수입니다. 나머지는 설정에서 언제든 입력할 수 있습니다.</p>
           <form onSubmit={registerCompany} className="grid md:grid-cols-2 gap-3">
-            {FIELDS.map(([k, label]) => (
+            {FIELDS.map(([k, label, type]) => (
               <label key={k} className={`text-xs text-slate-500 ${k === 'name' ? 'md:col-span-2' : ''}`}>
                 {label}
-                <input required={k === 'name'} value={form[k] || ''}
-                  onChange={e => setForm({ ...form, [k]: e.target.value })}
-                  className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+                {type === 'select' ? (
+                  <select value={form[k] || 'corporation'}
+                    onChange={e => setForm({ ...form, [k]: e.target.value })}
+                    className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                    <option value="corporation">법인사업자</option>
+                    <option value="sole_proprietor">개인사업자</option>
+                  </select>
+                ) : (
+                  <input required={k === 'name'} value={form[k] || ''}
+                    onChange={e => setForm({ ...form, [k]: e.target.value })}
+                    className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+                )}
               </label>
             ))}
             <div className="md:col-span-2">

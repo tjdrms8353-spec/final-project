@@ -349,3 +349,9 @@
 - 수정: `AuditLog.company_id` nullable화 + `audit()`·수집기 로그가 NULL 기록, 마이그레이션 `a1c8e3f9d204` (sqlite·TiDB 모두 적용 검증)
 - 재발 방지: sqlite 커넥션에 `PRAGMA foreign_keys=ON` 적용 — 테스트 DB도 FK를 검사하도록 변경, 이 조치로 `collection_service`의 동일 버그를 추가로 발견·수정
 - TiDB 실검증: 기업 미등록 사용자 register+audit 커밋 성공, company_id=NULL 확인
+
+### 추가 작업 (2026-11-26)
+- 운영 데모 워크스페이스: TiDB에 `(데모) 한빛세미텍` 시드 — 체험 계정 4개(owner/admin/member/viewer@dayribbon.demo), 24개월 데이터. README에 계정 안내
+- 운영 상태 화면: `Ops.jsx` — 발송 큐·스케줄러·수집기·LLM 사용량 카드 + 발송 이력 테이블. 관리자 전용 네비(OWNER/ADMIN)
+- 사업자 유형 분류: `companies.business_type` (corporation|sole_proprietor) — 온보딩「새 기업 등록」폼 + 기업 설정에서 선택/수정, Literal 검증. 마이그레이션 `b7d2e5a1f903` (기존 기업 corporation 기본값)
+- 테스트 103/103 통과, 프론트 빌드 통과
