@@ -341,6 +341,12 @@ export default function Settings() {
               <input type="checkbox" checked={ns.kakao_enabled} disabled={!canWrite}
                 onChange={e => setNs({ ...ns, kakao_enabled: e.target.checked })} className="w-4 h-4 accent-brand-600" />
             </label>
+            <label className="block py-2">
+              <span className="text-xs text-slate-500">카카오 수신 전화번호</span>
+              <input value={ns.kakao_phone || ''} disabled={!canWrite} placeholder="01012345678"
+                onChange={e => setNs({ ...ns, kakao_phone: e.target.value })}
+                className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm disabled:bg-slate-50" />
+            </label>
             <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">{ns.note}</div>
             {canWrite && <button onClick={saveNs} className="mt-4 bg-brand-600 text-white text-sm rounded-lg px-5 py-2.5 hover:bg-brand-700">저장</button>}
           </Card>

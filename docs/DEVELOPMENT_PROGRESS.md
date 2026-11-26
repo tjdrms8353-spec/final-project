@@ -301,12 +301,12 @@
 ### 외부 설정 대기
 - LLM_API_KEY/LLM_BASE_URL/LLM_MODEL — 실제 LLM 호출 (구현·Mock 검증 완료)
 - EXIM_API_KEY·ECOS_API_KEY·FRED_API_KEY·EIA_API_KEY·DART_API_KEY+DART_CORP_CODES — 실수집
-- DATABASE_URL·DB_SSL_CA — TiDB 실접속 (SQLite 마이그레이션 검증 완료)
+- SMTP_HOST/USER/PASSWORD·KAKAO_API_URL/API_KEY — 알림 실발송 계정 (큐 적재·재시도 구현 완료, 미설정 시 pending 대기)
 - 관세청·KOSIS — 공급처 미구현 (키 발급 후 구현 예정 — `DATA_SOURCES.md`)
 - GDELT 저장 경로 실수집 재확인 — 공급처 레이트리밋 해소 후
 
 ### 다음 단계
-- 단계 D(발송·운영)는 지시 있을 때까지 대기 — 임의 진행하지 않음
+- 단계 D(발송·운영) 진행 중 — 발송 큐·어댑터·운영 상태 API·CI 완료, 실계정 발송·운영 대시보드 UI 대기
 
 ---
 
@@ -319,3 +319,26 @@
 - Blueprint: `render.yaml` — 정적 사이트 `plan` 필드 제거로 오류 해결
 - IP 허용: TiDB 허용 목록은 현재 0.0.0.0/0 — 보안 강화 시 Render outbound 범위(74.220.48.0/24, 74.220.58.0/24)+개인 IP로 축소 가능
 - 주의: 무료 플랜 슬립(첫 요청 ~50초 지연), 운영에서 데모 시드·이벤트 자동 비활성
+
+---
+
+## 정식 전환 단계 D (2026-11-26 진행 중) — 발송·운영
+
+### 알림 실발송 큐
+- `NotificationDelivery` 테이블 — channel(email/kakao)·status(pending/sent/failed/skipped)·attempts·last_error·sent_at. 마이그레이션 `32f91f6f7a5d` (sqlite upgrade/downgrade 검증 완료)
+- `services/delivery_service.py` — SMTP 이메일 어댑터(STARTTLS/SSL 포트 분기)·카카오 알림톡 어댑터(벤더 REST API, KAKAO_API_URL 주입)·큐 워커 `process_pending_deliveries`(재시도 `DELIVERY_MAX_ATTEMPTS`회, 미설정 채널은 시도 소비 없이 pending 유지 → 설정 후 자동 발송)
+- `analysis_engine`의 가짜 "[발송 대기]" 알림을 실제 큐 등록(`queue_company_notifications`)으로 교체 — NotificationSetting의 email_enabled/kakao_enabled 토글·수신 주소 반영
+- `NotificationSetting.kakao_phone` 컬럼 + 설정 API·Settings.jsx에 수신 번호 입력 추가
+- 스케줄러 루프에서 매 틱 발송 큐 처리 (AUTO_ANALYSIS_INTERVAL_SEC 주기)
+
+### 운영 상태 API
+- `GET /api/ops/status` (관리자 전용) — 발송 큐 상태별 집계·SMTP/카카오 설정 여부·수집기 현황·최근 수집 오류·월간 LLM 호출/토큰·분석 작업 상태
+- `GET /api/deliveries` — 기업별 발송 이력 조회 (status 필터 지원)
+- 알림 설정 안내 문구를 "미연결 데모"에서 실제 발송 동작 설명으로 교체
+
+### 배포 파이프라인
+- `.github/workflows/ci.yml` — develop/final-pj push 시 백엔드 pytest + 프론트 vite build 자동 실행
+
+### 검증
+- 테스트 8건 신규 (`test_delivery.py`): 큐 등록·채널 토글·주소 없음 skipped·미설정 pending·모의 SMTP 성공·재시도→failed·카카오 미설정·deliveries API·ops 권한 — **전체 102/102 통과**
+- 프론트 vite build 통과

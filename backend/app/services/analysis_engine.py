@@ -199,11 +199,13 @@ def _mk_notification(db, company_id, ntype, title, message):
 
 
 def _queue_email_if_enabled(db, company_id, title, message):
-    st = db.query(NotificationSetting).filter(NotificationSetting.company_id == company_id).first()
-    if st and st.email_enabled:
-        _mk_notification(db, company_id, "email",
-                         f"[발송 대기] {title}",
-                         f"{message}\n\n※ 외부 발송 API 미연결 데모: 실제 이메일은 발송되지 않고 대기 상태로 기록됩니다.")
+    """알림 설정에 따라 이메일·카카오 발송 건을 큐에 넣는다.
+
+    실제 발송은 delivery_service.process_pending_deliveries 워커가 처리한다.
+    발송 상태는 notification_deliveries와 /api/alerts/deliveries에서 확인.
+    """
+    from .delivery_service import queue_company_notifications
+    queue_company_notifications(db, company_id, title, message)
 
 
 def _setting(db, company_id, flag: str) -> bool:

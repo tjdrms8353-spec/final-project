@@ -1,0 +1,144 @@
+"""정식 전환 D — 알림 실발송 큐·어댑터·운영 상태 API 테스트."""
+import pytest
+
+from app.models import NotificationDelivery, NotificationSetting, User
+from app.services import delivery_service as ds
+
+
+@pytest.fixture(autouse=True)
+def _clean_deliveries(db):
+    """발송 큐를 비워 테스트 간 격리한다."""
+    db.query(NotificationDelivery).delete()
+    db.commit()
+
+
+def _get_settings(db, company_id):
+    st = db.query(NotificationSetting).filter(
+        NotificationSetting.company_id == company_id).first()
+    if not st:
+        st = NotificationSetting(company_id=company_id)
+        db.add(st)
+        db.flush()
+    return st
+
+
+def test_enqueue_and_skip_without_address(db):
+    st = _get_settings(db, 1)
+    st.email_enabled = True
+    st.email_address = "ops@test.com"
+    d = ds.queue_company_notifications(db, 1, "위험 알림", "메시지 본문")
+    assert len(d) == 1 and d[0].channel == "email"
+    assert d[0].status == "pending" and d[0].address == "ops@test.com"
+
+    st.email_address = ""     # 주소 없으면 skipped
+    d2 = ds.queue_company_notifications(db, 1, "제목", "본문")
+    assert d2[0].status == "skipped" and "주소" in d2[0].last_error
+
+
+def test_channel_toggles(db):
+    st = _get_settings(db, 1)
+    st.email_enabled, st.kakao_enabled = False, True
+    st.email_address = "a@b.com"; st.kakao_phone = "01000000000"
+    d = ds.queue_company_notifications(db, 1, "t", "m")
+    assert [x.channel for x in d] == ["kakao"]
+
+    st.email_enabled, st.kakao_enabled = True, False
+    d2 = ds.queue_company_notifications(db, 1, "t", "m")
+    assert [x.channel for x in d2] == ["email"]
+
+
+def test_unconfigured_stays_pending(db):
+    """SMTP 미설정 시 pending 유지 — 시도 횟수를 소비하지 않는다."""
+    assert not ds.smtp_configured()       # 테스트 환경에는 SMTP 설정 없음
+    ds.enqueue_delivery(db, 1, "email", "a@b.com", "t", "m")
+    db.flush()
+    r = ds.process_pending_deliveries(db)
+    d = db.query(NotificationDelivery).one()
+    assert r["waiting"] == 1
+    assert d.status == "pending" and d.attempts == 0
+    assert "SMTP" in d.last_error
+
+
+def test_email_send_success(db, monkeypatch):
+    monkeypatch.setattr(ds, "SMTP_HOST", "smtp.test")
+    monkeypatch.setattr(ds, "SMTP_PORT", 587)
+    monkeypatch.setattr(ds, "SMTP_USER", "u")
+    monkeypatch.setattr(ds, "SMTP_PASSWORD", "p")
+    monkeypatch.setattr(ds, "SMTP_STARTTLS", True)
+
+    sent = []
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout=0):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, *a):
+            return False
+        def starttls(self):
+            sent.append("tls")
+        def login(self, u, p):
+            sent.append("login")
+        def send_message(self, msg):
+            sent.append(msg["To"])
+
+    monkeypatch.setattr(ds.smtplib, "SMTP", FakeSMTP)
+    ds.enqueue_delivery(db, 1, "email", "to@co.kr", "제목", "본문")
+    db.flush()
+    r = ds.process_pending_deliveries(db)
+    d = db.query(NotificationDelivery).one()
+    assert r["sent"] == 1 and d.status == "sent" and d.sent_at is not None
+    assert "to@co.kr" in sent and "tls" in sent and "login" in sent
+
+
+def test_email_failure_retry_then_failed(db, monkeypatch):
+    monkeypatch.setattr(ds, "SMTP_HOST", "smtp.test")
+    monkeypatch.setattr(ds, "SMTP_USER", "u")
+    monkeypatch.setattr(ds, "SMTP_PASSWORD", "p")
+    monkeypatch.setattr(ds, "DELIVERY_MAX_ATTEMPTS", 2)
+
+    class BoomSMTP:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def starttls(self): pass
+        def login(self, u, p): raise OSError("auth fail")
+
+    monkeypatch.setattr(ds.smtplib, "SMTP", BoomSMTP)
+    ds.enqueue_delivery(db, 1, "email", "a@b.com", "t", "m")
+    db.flush()
+    ds.process_pending_deliveries(db)
+    d = db.query(NotificationDelivery).one()
+    assert d.status == "pending" and d.attempts == 1 and "auth fail" in d.last_error
+    ds.process_pending_deliveries(db)   # attempts=2
+    ds.process_pending_deliveries(db)   # 상한 도달 → failed
+    assert db.query(NotificationDelivery).one().status == "failed"
+
+
+def test_kakao_unconfigured(db):
+    assert not ds.kakao_configured()
+    ok, err = ds.send_kakao("01012345678", "t", "m")
+    assert ok is False and "카카오" in err
+
+
+def test_deliveries_api(db, client, owner_headers):
+    owner = db.query(User).filter(User.email == "owner@dayribbon.demo").one()
+    ds.enqueue_delivery(db, owner.company_id, "email", "ops@test.com",
+                        "알림 제목", "본문")
+    db.commit()
+    r = client.get("/api/deliveries", headers=owner_headers)
+    assert r.status_code == 200
+    items = r.json()["items"]
+    assert len(items) == 1 and items[0]["channel"] == "email"
+    assert items[0]["address"] == "ops@test.com"
+
+
+def test_ops_status_admin_only(db, client, owner_headers, viewer_headers):
+    r = client.get("/api/ops/status", headers=viewer_headers)
+    assert r.status_code == 403
+    r = client.get("/api/ops/status", headers=owner_headers)
+    assert r.status_code == 200
+    body = r.json()
+    assert "deliveries" in body and "smtp_configured" in body["deliveries"]
+    assert body["deliveries"]["smtp_configured"] is False
+    assert "collectors" in body and "llm_month" in body

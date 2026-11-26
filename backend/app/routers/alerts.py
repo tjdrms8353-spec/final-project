@@ -3,8 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..deps import audit, get_current_user, require_write
-from ..models import Notification, NotificationSetting, RiskAlert, User
+from ..deps import audit, get_current_user, require_admin, require_write
+from ..models import (
+    Notification, NotificationDelivery, NotificationSetting, RiskAlert, User,
+)
 from ..schemas import NotificationSettingUpdate
 
 router = APIRouter(prefix="/api", tags=["alerts"])
@@ -110,8 +112,8 @@ def get_settings(user: User = Depends(get_current_user), db: Session = Depends(g
         "kpi_change": st.kpi_change, "analysis_done": st.analysis_done,
         "weekly_summary": st.weekly_summary,
         "email_enabled": st.email_enabled, "kakao_enabled": st.kakao_enabled,
-        "email_address": st.email_address,
-        "note": "외부 발송 API 미연결 데모: 실제 이메일/카카오 발송 없이 '발송 대기' 상태로 기록됩니다.",
+        "email_address": st.email_address, "kakao_phone": st.kakao_phone,
+        "note": "외부 발송은 큐를 거쳐 실제 발송됩니다. SMTP/카카오 키 미설정 시 '발송 대기'로 남고 설정 후 자동 발송됩니다.",
     }
 
 
@@ -128,3 +130,24 @@ def update_settings(body: NotificationSettingUpdate,
     audit(db, user, "SETTINGS_UPDATE", "notification_settings", st.id)
     db.commit()
     return get_settings(user, db)
+
+
+@router.get("/deliveries")
+def list_deliveries(status: str | None = None, limit: int = 50,
+                    user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    """외부 발송 이력 — 이메일/카카오 발송 큐의 상태 조회."""
+    q = db.query(NotificationDelivery).filter(
+        NotificationDelivery.company_id == user.company_id)
+    if status:
+        q = q.filter(NotificationDelivery.status == status)
+    rows = q.order_by(NotificationDelivery.created_at.desc()).limit(min(limit, 200)).all()
+    return {
+        "items": [{
+            "id": d.id, "channel": d.channel, "address": d.address,
+            "title": d.title, "status": d.status, "attempts": d.attempts,
+            "last_error": d.last_error,
+            "created_at": d.created_at.isoformat() if d.created_at else "",
+            "sent_at": d.sent_at.isoformat() if d.sent_at else "",
+        } for d in rows],
+    }

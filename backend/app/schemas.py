@@ -130,6 +130,7 @@ class NotificationSettingUpdate(BaseModel):
     email_enabled: Optional[bool] = None
     kakao_enabled: Optional[bool] = None
     email_address: Optional[str] = None
+    kakao_phone: Optional[str] = None
 
 
 class MonthlyFinancialIn(BaseModel):

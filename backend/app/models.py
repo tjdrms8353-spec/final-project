@@ -405,6 +405,26 @@ class NotificationSetting(Base):
     email_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     kakao_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     email_address: Mapped[str] = mapped_column(String(200), default="")
+    kakao_phone: Mapped[str] = mapped_column(String(50), default="")
+
+
+class NotificationDelivery(Base):
+    """알림 실발송 큐 — 인앱 Notification과 별도로 외부 채널 발송 상태를 관리."""
+    __tablename__ = "notification_deliveries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    notification_id: Mapped[int] = mapped_column(ForeignKey("notifications.id"), nullable=True, index=True)
+    channel: Mapped[str] = mapped_column(String(20))           # email / kakao
+    address: Mapped[str] = mapped_column(String(200))          # 이메일 주소 또는 전화번호
+    title: Mapped[str] = mapped_column(String(300))
+    message: Mapped[str] = mapped_column(Text, default="")
+    # pending(발송 대기·미설정 포함) / sent / failed(재시도 초과) / skipped(주소 없음)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    last_error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    sent_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
 
 class UploadRecord(Base):

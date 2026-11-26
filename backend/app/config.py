@@ -94,3 +94,20 @@ DART_CORP_CODES = os.getenv("DART_CORP_CODES", "")
 
 # 운영 환경에서 이용 조건 미검증 공급처를 강제 활성화할 때만 1로 설정
 ALLOW_UNVERIFIED_SOURCES = os.getenv("ALLOW_UNVERIFIED_SOURCES", "0") == "1"
+
+# --- 알림 실발송 (정식 전환 D) ---
+# SMTP 이메일 — 미설정 시 발송 큐가 '설정 대기'로 남고 설정 후 자동 발송
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", "")           # 비워두면 SMTP_USER 사용
+SMTP_STARTTLS = os.getenv("SMTP_STARTTLS", "1") == "1"
+
+# 카카오 알림톡 — 벤더 API(알리고/비즈톡 등) 키 필요. 미설정 시 비활성
+KAKAO_API_URL = os.getenv("KAKAO_API_URL", "")
+KAKAO_API_KEY = os.getenv("KAKAO_API_KEY", "")
+KAKAO_SENDER_KEY = os.getenv("KAKAO_SENDER_KEY", "")
+
+# 발송 워커 — 스케줄러 tick마다 처리. 재시도 상한 초과 시 failed
+DELIVERY_MAX_ATTEMPTS = int(os.getenv("DELIVERY_MAX_ATTEMPTS", "3"))

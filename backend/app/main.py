@@ -14,7 +14,7 @@ from .database import Base, SessionLocal, engine
 from .models import AnalysisResult, Company
 from .routers import (
     alerts, analysis, audit, auth, collection, company, dashboard, decisions,
-    demo_events, finance, financial, kpi, news, reports, simulation,
+    demo_events, finance, financial, kpi, news, ops, reports, simulation,
 )
 from .seed import seed
 
@@ -62,6 +62,12 @@ def _scheduler_loop(stop: threading.Event):
                     done = run_due_collectors(db)
                     for r in done:
                         print(f"[collector] {r['name']}: 시계열 {r['series']}건 / 뉴스 점수 {r['news']}건")
+
+                    # 알림 실발송 큐 처리 — pending 건을 SMTP/카카오로 발송
+                    from .services.delivery_service import process_pending_deliveries
+                    dc = process_pending_deliveries(db)
+                    if dc["sent"] or dc["failed"]:
+                        print(f"[delivery] 발송 {dc['sent']}건 / 실패 {dc['failed']}건")
                     last_collect = time.time()
 
                 cids = [c.id for c in db.query(Company.id).all()]
@@ -105,7 +111,8 @@ app.add_middleware(
 for r in (auth.auth_router, company.company_router, dashboard.router,
           financial.router, news.router, finance.router, analysis.router,
           simulation.router, alerts.router, decisions.router,
-          reports.router, audit.router, collection.router, kpi.router):
+          reports.router, audit.router, collection.router, kpi.router,
+          ops.router):
     app.include_router(r)
 
 # 데모 전용 라우터 — DEMO_EVENTS_ENABLED=1 일 때만 노출 (실데이터 오염 방지)

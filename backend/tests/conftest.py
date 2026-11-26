@@ -43,3 +43,14 @@ def viewer_headers(client):
                     json={"email": "viewer@dayribbon.demo", "password": "demo1234"})
     assert r.status_code == 200, r.text
     return {"Authorization": f"Bearer {r.json()['token']}"}
+
+
+@pytest.fixture()
+def db(client):
+    """앱 기동(client)으로 테이블이 생성된 뒤 세션을 연다."""
+    from app.database import SessionLocal
+    s = SessionLocal()
+    try:
+        yield s
+    finally:
+        s.close()
