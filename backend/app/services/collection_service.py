@@ -278,7 +278,8 @@ def run_collector(db: Session, collector, trigger: str = "schedule",
         state.next_run_at = datetime.fromtimestamp(
             now.timestamp() + state.interval_sec)
         state.last_error = " / ".join(errors)[:2000]
-    db.add(AuditLog(company_id=company_id or 0, user_id=None,
+    # 공통 수집기는 company_id=None — 존재하지 않는 회사 0 대입 금지(FK 위반)
+    db.add(AuditLog(company_id=company_id, user_id=None,
                     user_name="(시스템)", user_role="",
                     action="collection.run", target_type="collector",
                     target_id=collector.name,

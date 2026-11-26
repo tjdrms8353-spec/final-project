@@ -342,3 +342,10 @@
 ### 검증
 - 테스트 8건 신규 (`test_delivery.py`): 큐 등록·채널 토글·주소 없음 skipped·미설정 pending·모의 SMTP 성공·재시도→failed·카카오 미설정·deliveries API·ops 권한 — **전체 102/102 통과**
 - 프론트 vite build 통과
+
+### 운영 버그 수정 (2026-11-26) — 회원가입/로그인 500
+- 증상: 배포 사이트 회원가입 `Failed to fetch` — 실제로는 500(500 응답엔 CORS 헤더가 없어 브라우저에 네트워크 오류로 표시)
+- 원인: `audit()`이 기업 미등록 사용자에게 `company_id=0`을 기록 → `audit_logs.company_id` FK(companies.id) 위반으로 commit 실패. TiDB는 FK를 검사하고 sqlite는 기본 미검사라 로컬·테스트에서 잡히지 않았음. `collection_service`의 공통 수집기 로그도 동일 버그(운영 스케줄러에서 동일하게 실패했을 코드)
+- 수정: `AuditLog.company_id` nullable화 + `audit()`·수집기 로그가 NULL 기록, 마이그레이션 `a1c8e3f9d204` (sqlite·TiDB 모두 적용 검증)
+- 재발 방지: sqlite 커넥션에 `PRAGMA foreign_keys=ON` 적용 — 테스트 DB도 FK를 검사하도록 변경, 이 조치로 `collection_service`의 동일 버그를 추가로 발견·수정
+- TiDB 실검증: 기업 미등록 사용자 register+audit 커밋 성공, company_id=NULL 확인

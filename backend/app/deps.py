@@ -56,7 +56,8 @@ def audit(db: Session, user: User | None, action: str, target_type: str = "",
           target_id: str = "", detail: str = ""):
     from .models import AuditLog
     log = AuditLog(
-        company_id=(user.company_id or 0) if user else 0,
+        # 기업 미등록 사용자는 company_id=None — FK 대상이 없으므로 NULL 저장
+        company_id=user.company_id if user else None,
         user_id=user.id if user else None,
         user_name=user.name if user else "(시스템)",
         user_role=user.role if user else "",

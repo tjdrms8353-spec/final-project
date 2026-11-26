@@ -460,7 +460,9 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    # 기업 미등록 상태의 이벤트(회원가입·로그인 등)는 company 없이 기록된다
+    company_id: Mapped[int | None] = mapped_column(
+        ForeignKey("companies.id"), index=True, nullable=True)
     user_id: Mapped[int] = mapped_column(Integer, nullable=True)
     user_name: Mapped[str] = mapped_column(String(100), default="(시스템)")
     user_role: Mapped[str] = mapped_column(String(20), default="")

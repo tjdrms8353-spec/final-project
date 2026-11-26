@@ -44,6 +44,18 @@ else:
 
 engine = create_engine(DATABASE_URL, connect_args=connect_args,
                        future=True, **pool_kwargs)
+
+if _is_sqlite:
+    # sqlite는 기본적으로 FK를 검사하지 않아 MySQL/TiDB와 동작이 다르다.
+    # FK 위반을 개발·테스트 단계에서 잡을 수 있도록 커넥션마다 활성화한다.
+    from sqlalchemy import event
+
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_fk(dbapi_conn, _):
+        cur = dbapi_conn.cursor()
+        cur.execute("PRAGMA foreign_keys=ON")
+        cur.close()
+
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 
