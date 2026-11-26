@@ -56,3 +56,11 @@ cd frontend && npx vite build
 - `users.email` 같은 컬럼명 한글 별칭은 업로드 검증에서 지원됨.
 - 보고서 PDF는 한글 폰트(맑은고딕 등)가 있어야 출력됨.
 - 초대·비밀번호 재설정 토큰은 해시 저장, 이메일 발송 모듈 미연동 시 응답에 포함(연동 시 제거).
+
+## 브랜치·push 규칙
+- GitHub `tjdrms8353-spec/final-project` 브랜치 용도:
+  - `final-pj` — 개인 작업 브랜치 (개발 push 대상)
+  - `develop` — 팀 공유·머지 브랜치 (개발 push 대상)
+  - `main` — 최종 배포용. 승인 없이 push하지 않음
+- 코드 push는 `main:develop` + `main:final-pj`로만 수행한다.
+- Render 배포는 Blueprint가 브랜치를 감시 — main 변경 시 자동 재배포됨을 유의.
