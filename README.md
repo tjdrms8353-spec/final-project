@@ -19,6 +19,32 @@ USB의 `dayribbon/` 폴더 아래에는 성격이 다른 두 프로젝트가 있
 문서: `작업일지.md`(기능별 목적·방식·사용법), `docs/PRODUCTION_PLAN_A.md`(전환 단계),
 `docs/DEPLOY_RENDER.md`(Render 배포 가이드), `docs/dayribbon_project_plan.pdf`(기획서)
 
+## 배포된 서비스 (Render + TiDB)
+
+| 항목 | 주소/정보 |
+|---|---|
+| 웹 앱 | https://dayribbon-web.onrender.com |
+| 백엔드 API | https://dayribbon-api.onrender.com (`/api/health`, `/api/health/db`) |
+| DB | TiDB Cloud Serverless (`final-dayribbon`) — TLS 필수 |
+
+사용: 웹 앱에서 회원가입 → 기업 등록 → 온보딩 후 이용.
+
+### 알아둘 것
+
+- **첫 접속 지연**: Render 무료 플랜은 요청이 없으면 슬립합니다. 첫 요청에
+  ~50초 걸리는 건 오류가 아니라 서비스가 깨어나는 중입니다.
+- **배포 방식**: 저장소 루트의 `render.yaml`(Blueprint) 기준 — main 브랜치에
+  push하면 Render가 자동 재배포합니다. 수동 재배포는 서비스 페이지의
+  Manual Deploy.
+- **환경변수**: `.env`는 Git에 포함되지 않습니다. 운영 값은 Render 대시보드
+  → `dayribbon-api` → Environment에서 관리합니다 (DATABASE_URL 등).
+- **TiDB 허용 목록**: 현재 `0.0.0.0/0`(전체 허용) 상태입니다. 보안 강화 시
+  Render outbound 범위(`74.220.48.0/24`, `74.220.58.0/24`) + 본인 PC IP로 축소하세요.
+- **API 키 없이 동작하는 부분**: LLM 분석과 EXIM/ECOS/FRED/EIA/DART 수집기는
+  키가 없어 규칙 기반 폴백/비활성으로 동작합니다. 키 발급 시 Render
+  Environment에 추가하면 활성화됩니다 (`docs/REQUIRED_API_KEYS.md`).
+- **수집 스케줄러**: 서버가 깨어있을 때만 동작 — 무료 플랜에서는 수집이 간헐적입니다.
+
 ## 기술 스택
 
 - **Frontend**: React 18 + Vite + Tailwind CSS v4 + Recharts + React Router
