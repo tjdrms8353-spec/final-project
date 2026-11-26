@@ -307,3 +307,15 @@
 
 ### 다음 단계
 - 단계 D(발송·운영)는 지시 있을 때까지 대기 — 임의 진행하지 않음
+
+---
+
+## Render 배포 (2026-11-26 완료)
+
+- **dayribbon-api** (Docker, free): https://dayribbon-api.onrender.com — `APP_ENV=production`, 헬스체크·DB 연결 실검증 (`{"ok":true,"dialect":"mysql"}`)
+- **dayribbon-web** (Static): https://dayribbon-web.onrender.com — `VITE_API_BASE` 빌드 주입
+- **DB**: TiDB Cloud Serverless `final-dayribbon` (TLSv1.3, `DB_SSL_REQUIRED=1` 시스템 CA) — `alembic upgrade head`로 스키마 생성, 전용 버전 테이블 `dayribbon_alembic_version`
+- 레거시 news_articles 11,245건 이관 완료 (공통 뉴스, is_demo=False, dedup 0건)
+- Blueprint: `render.yaml` — 정적 사이트 `plan` 필드 제거로 오류 해결
+- IP 허용: TiDB 허용 목록은 현재 0.0.0.0/0 — 보안 강화 시 Render outbound 범위(74.220.48.0/24, 74.220.58.0/24)+개인 IP로 축소 가능
+- 주의: 무료 플랜 슬립(첫 요청 ~50초 지연), 운영에서 데모 시드·이벤트 자동 비활성
