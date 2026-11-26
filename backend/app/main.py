@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import (
     APP_ENV, AUTO_ANALYSIS_INTERVAL_SEC, CORS_ORIGINS,
-    DEMO_EVENTS_ENABLED, SEED_DEMO,
+    DEMO_EVENTS_ENABLED, IS_PROD, SEED_DEMO,
 )
 from .database import Base, SessionLocal, engine
 from .models import AnalysisResult, Company
@@ -21,7 +21,11 @@ from .seed import seed
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    # 개발/테스트: create_all로 스키마 자동 생성.
+    # 운영: 스키마는 Alembic 마이그레이션이 관리한다 (Dockerfile CMD에서
+    # `alembic upgrade head` 선실행) — create_all과 마이그레이션의 충돌 방지.
+    if not IS_PROD:
+        Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         if SEED_DEMO:
