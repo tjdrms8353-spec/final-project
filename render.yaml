@@ -1,0 +1,71 @@
+# dayribbon Render 배포 블루프린트 (DB: TiDB Cloud)
+# Render Dashboard → New → Blueprint → 이 저장소 선택 시 아래 리소스가 자동 생성된다.
+#
+# 생성되는 리소스:
+#   - dayribbon-api  : FastAPI 백엔드 (Docker)
+#   - dayribbon-web  : React 정적 사이트 (빌드 시 백엔드 주소 주입)
+#
+# DB는 TiDB Cloud Serverless를 사용한다 (Render는 MySQL을 제공하지 않음).
+# 사전 준비: https://tidbcloud.com 에서 무료 Serverless 클러스터 생성 후
+# 접속 문자열(mysql+pymysql://user:pass@host:4000/dayribbon)을 확보해 둘 것.
+# Blueprint 생성 시 DATABASE_URL 값을 입력하면 된다.
+#
+# 배포 후 확인: https://dayribbon-api.onrender.com/api/health
+
+services:
+  - type: web
+    name: dayribbon-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_ENV
+        value: production
+      # TiDB Cloud 접속 문자열 — 배포 시 직접 입력 (예시 형식은 위 주석 참조)
+      - key: DATABASE_URL
+        sync: false
+      # TiDB Serverless는 TLS 필수 — 시스템 CA로 연결
+      - key: DB_SSL_REQUIRED
+        value: "1"
+      - key: CORS_ORIGINS
+        value: https://dayribbon-web.onrender.com
+      - key: TOKEN_TTL_HOURS
+        value: "168"
+      - key: AUTO_ANALYSIS_INTERVAL_SEC
+        value: "600"
+      # 아래 키들은 배포 후 Dashboard에서 필요 시 입력 (비워두면 해당 기능 비활성/폴백)
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+      - key: EXIM_API_KEY
+        sync: false
+      - key: ECOS_API_KEY
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+      - key: DART_API_KEY
+        sync: false
+      - key: DART_CORP_CODES
+        sync: false
+
+  - type: web
+    name: dayribbon-web
+    runtime: static
+    plan: free
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    routes:
+      # SPA 라우팅 — 모든 경로를 index.html로
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE
+        value: https://dayribbon-api.onrender.com

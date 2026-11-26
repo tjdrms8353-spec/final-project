@@ -2,20 +2,26 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
 from .config import (
-    DATABASE_URL, DB_POOL_RECYCLE, DB_POOL_SIZE, DB_SSL_CA,
+    DATABASE_URL, DB_POOL_RECYCLE, DB_POOL_SIZE, DB_SSL_CA, DB_SSL_REQUIRED,
 )
 
 _is_sqlite = DATABASE_URL.startswith("sqlite")
+_is_mysql = DATABASE_URL.startswith(("mysql", "mariadb"))
 
 if _is_sqlite:
     connect_args = {"check_same_thread": False}
     pool_kwargs = {}
 else:
-    # TiDB/MySQL — TLS CA 지정 시 SSL 연결
-    connect_args = {"ssl": {"ca": DB_SSL_CA}} if DB_SSL_CA else {}
+    # TiDB/MySQL — TLS CA 파일 또는 시스템 CA로 SSL 연결 (pymysql 형식)
+    if _is_mysql and DB_SSL_CA:
+        connect_args = {"ssl": {"ca": DB_SSL_CA}}
+    elif _is_mysql and DB_SSL_REQUIRED:
+        connect_args = {"ssl": {"ca": None}}  # 시스템 CA 사용 (TiDB Serverless 등)
+    else:
+        connect_args = {}
     pool_kwargs = {
         "pool_size": DB_POOL_SIZE,
-        "pool_recycle": DB_POOL_RECYCLE,  # TiDB 유휴 커넥션 재활용
+        "pool_recycle": DB_POOL_RECYCLE,  # 유휴 커넥션 재활용
         "pool_pre_ping": True,            # 끊긴 커넥션 자동 감지
     }
 

@@ -10,16 +10,21 @@ APP_ENV = os.getenv("APP_ENV", "dev")
 IS_PROD = APP_ENV == "production"
 
 # TiDB/MySQL 전환 시: mysql+pymysql://user:pass@host:4000/dayribbon
+# Render 등 PaaS PostgreSQL: postgres:// 접두어를 SQLAlchemy 형식으로 정규화
 _db_url = os.getenv("DATABASE_URL")
+if _db_url and _db_url.startswith("postgres://"):
+    _db_url = "postgresql://" + _db_url[len("postgres://"):]
 if IS_PROD and (not _db_url or _db_url.startswith("sqlite")):
     raise RuntimeError(
         "[dayribbon] 운영 환경(APP_ENV=production)에는 DATABASE_URL에 "
-        "TiDB/MySQL 접속 정보(mysql+pymysql://...)가 필요합니다. "
+        "외부 DB 접속 정보(mysql+pymysql:// 또는 postgresql://)가 필요합니다. "
         "SQLite·기본값으로는 운영 환경을 시작할 수 없습니다.")
 DATABASE_URL = _db_url or f"sqlite:///{DATA_DIR / 'dayribbon.db'}"
 
 # TiDB Cloud TLS CA 경로 (mysql 계열 접속 시 사용)
 DB_SSL_CA = os.getenv("DB_SSL_CA", "")
+# CA 파일 없이 시스템 CA로 TLS 강제 (TiDB Serverless 등 TLS 필수 접속용)
+DB_SSL_REQUIRED = os.getenv("DB_SSL_REQUIRED", "0") == "1"
 
 # 커넥션 풀 (sqlite에는 pool_size 미적용)
 DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))

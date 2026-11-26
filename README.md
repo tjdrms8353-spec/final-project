@@ -17,7 +17,7 @@ USB의 `dayribbon/` 폴더 아래에는 성격이 다른 두 프로젝트가 있
 ② 데모용 가상 데이터와 실서비스 데이터의 혼합을 막기 위해.
 
 문서: `작업일지.md`(기능별 목적·방식·사용법), `docs/PRODUCTION_PLAN_A.md`(전환 단계),
-`docs/dayribbon_project_plan.pdf`(기획서)
+`docs/DEPLOY_RENDER.md`(Render 배포 가이드), `docs/dayribbon_project_plan.pdf`(기획서)
 
 ## 기술 스택
 
