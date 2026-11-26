@@ -5,6 +5,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
+# 프로젝트 루트 .env 로드 — 없으면 무시. 이미 설정된 환경변수가 우선한다.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(BASE_DIR.parent / ".env")
+except ImportError:
+    pass
+
 # 실행 환경: dev(기본) / production
 APP_ENV = os.getenv("APP_ENV", "dev")
 IS_PROD = APP_ENV == "production"
