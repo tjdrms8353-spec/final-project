@@ -42,7 +42,7 @@ def ops_status(user: User = Depends(require_admin), db: Session = Depends(get_db
         .filter(AnalysisJob.company_id == user.company_id)
         .group_by(AnalysisJob.status).all())
 
-    from ..services.delivery_service import kakao_configured, smtp_configured
+    from ..services.delivery_service import email_configured, kakao_configured, resend_configured
     return {
         "env": APP_ENV,
         "version": os.getenv("RENDER_GIT_COMMIT", "")[:7] or "local",
@@ -53,7 +53,8 @@ def ops_status(user: User = Depends(require_admin), db: Session = Depends(get_db
             "sent": deliveries.get("sent", 0),
             "failed": deliveries.get("failed", 0),
             "skipped": deliveries.get("skipped", 0),
-            "smtp_configured": smtp_configured(),
+            "email_configured": email_configured(),
+            "resend_configured": resend_configured(),
             "kakao_configured": kakao_configured(),
         },
         "collectors": {

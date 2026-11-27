@@ -104,6 +104,12 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 SMTP_FROM = os.getenv("SMTP_FROM", "")           # 비워두면 SMTP_USER 사용
 SMTP_STARTTLS = os.getenv("SMTP_STARTTLS", "1") == "1"
 
+# Resend 이메일 API — HTTPS(443) 발송. Render 무료 플랜은 아웃바운드 SMTP
+# 포트(25/465/587)를 차단하므로 무료 환경에서는 이 키로 발송해야 한다.
+# 설정되면 SMTP보다 우선 사용.
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+RESEND_FROM = os.getenv("RESEND_FROM", "")       # 비워두면 onboarding@resend.dev (테스트 발신자)
+
 # 카카오 알림톡 — 벤더 API(알리고/비즈톡 등) 키 필요. 미설정 시 비활성
 KAKAO_API_URL = os.getenv("KAKAO_API_URL", "")
 KAKAO_API_KEY = os.getenv("KAKAO_API_KEY", "")

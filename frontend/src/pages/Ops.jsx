@@ -71,11 +71,11 @@ export default function Ops() {
             ))}
           </div>
           <div className="mt-3 flex flex-wrap gap-1.5">
-            <ConfigBadge ok={d.smtp_configured} label="SMTP(이메일)" />
+            <ConfigBadge ok={d.email_configured} label={`이메일(${d.resend_configured ? 'Resend' : 'SMTP'})`} />
             <ConfigBadge ok={d.kakao_configured} label="카카오" />
           </div>
           <p className="mt-2 text-[11px] text-slate-400">
-            미설정 상태에서 등록된 발송 건은 '발송 대기'로 남고, 서버 환경변수(SMTP_*/KAKAO_*) 설정 후 자동 발송됩니다.
+            미설정 상태에서 등록된 발송 건은 '발송 대기'로 남고, 서버 환경변수(RESEND_API_KEY 또는 SMTP_*/KAKAO_*) 설정 후 자동 발송됩니다.
           </p>
           <form onSubmit={sendTest} className="mt-3 flex gap-2">
             <select value={testChannel} onChange={e => setTestChannel(e.target.value)}

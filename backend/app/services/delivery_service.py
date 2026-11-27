@@ -14,16 +14,27 @@ from sqlalchemy.orm import Session
 
 from ..config import (
     DELIVERY_MAX_ATTEMPTS, KAKAO_API_KEY, KAKAO_API_URL, KAKAO_SENDER_KEY,
+    RESEND_API_KEY, RESEND_FROM,
     SMTP_FROM, SMTP_HOST, SMTP_PASSWORD, SMTP_PORT, SMTP_STARTTLS, SMTP_USER,
 )
 from ..models import NotificationDelivery, NotificationSetting
 
-UNCONFIGURED_EMAIL = "SMTP 미설정 — SMTP_HOST·SMTP_USER·SMTP_PASSWORD 필요"
+UNCONFIGURED_EMAIL = "이메일 미설정 — RESEND_API_KEY 또는 SMTP_HOST·SMTP_USER·SMTP_PASSWORD 필요"
 UNCONFIGURED_KAKAO = "카카오 알림톡 미설정 — KAKAO_API_URL·KAKAO_API_KEY 필요"
+
+RESEND_API_URL = "https://api.resend.com/emails"
+
+
+def resend_configured() -> bool:
+    return bool(RESEND_API_KEY)
 
 
 def smtp_configured() -> bool:
     return bool(SMTP_HOST and SMTP_USER and SMTP_PASSWORD)
+
+
+def email_configured() -> bool:
+    return resend_configured() or smtp_configured()
 
 
 def kakao_configured() -> bool:
@@ -31,9 +42,37 @@ def kakao_configured() -> bool:
 
 
 def send_email(address: str, title: str, message: str) -> tuple[bool, str]:
-    """SMTP로 이메일 발송. (성공여부, 오류메시지) 반환."""
+    """이메일 발송. RESEND_API_KEY가 있으면 Resend(HTTPS), 아니면 SMTP."""
+    if resend_configured():
+        return _send_email_resend(address, title, message)
     if not smtp_configured():
         return False, UNCONFIGURED_EMAIL
+    return _send_email_smtp(address, title, message)
+
+
+def _send_email_resend(address: str, title: str, message: str) -> tuple[bool, str]:
+    """Resend HTTPS API로 발송 — Render 무료 플랜의 SMTP 포트 차단 우회."""
+    try:
+        r = httpx.post(
+            RESEND_API_URL,
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+            json={
+                "from": RESEND_FROM or "dayribbon <onboarding@resend.dev>",
+                "to": [address],
+                "subject": f"[dayribbon] {title}",
+                "text": message,
+            },
+            timeout=15,
+        )
+        if r.status_code in (200, 201):
+            return True, ""
+        return False, f"Resend HTTP {r.status_code}: {r.text[:200]}"
+    except Exception as e:
+        return False, f"{type(e).__name__}: {e}"[:500]
+
+
+def _send_email_smtp(address: str, title: str, message: str) -> tuple[bool, str]:
+    """SMTP로 이메일 발송. (성공여부, 오류메시지) 반환."""
     msg = EmailMessage()
     msg["Subject"] = f"[dayribbon] {title}"
     msg["From"] = SMTP_FROM or SMTP_USER

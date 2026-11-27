@@ -48,8 +48,8 @@ def test_channel_toggles(db):
 
 
 def test_unconfigured_stays_pending(db):
-    """SMTP 미설정 시 pending 유지 — 시도 횟수를 소비하지 않는다."""
-    assert not ds.smtp_configured()       # 테스트 환경에는 SMTP 설정 없음
+    """이메일 미설정 시 pending 유지 — 시도 횟수를 소비하지 않는다."""
+    assert not ds.email_configured()      # 테스트 환경에는 이메일 설정 없음
     ds.enqueue_delivery(db, 1, "email", "a@b.com", "t", "m")
     db.flush()
     r = ds.process_pending_deliveries(db)
@@ -89,6 +89,31 @@ def test_email_send_success(db, monkeypatch):
     d = db.query(NotificationDelivery).one()
     assert r["sent"] == 1 and d.status == "sent" and d.sent_at is not None
     assert "to@co.kr" in sent and "tls" in sent and "login" in sent
+
+
+def test_email_send_resend(db, monkeypatch):
+    """RESEND_API_KEY 설정 시 SMTP 대신 Resend HTTPS API로 발송."""
+    monkeypatch.setattr(ds, "RESEND_API_KEY", "re_test")
+    calls = []
+
+    class FakeResp:
+        status_code = 200
+        text = "{}"
+
+    def fake_post(url, headers=None, json=None, timeout=0):
+        calls.append((url, headers, json))
+        return FakeResp()
+
+    monkeypatch.setattr(ds.httpx, "post", fake_post)
+    ds.enqueue_delivery(db, 1, "email", "to@co.kr", "제목", "본문")
+    db.flush()
+    r = ds.process_pending_deliveries(db)
+    d = db.query(NotificationDelivery).one()
+    assert r["sent"] == 1 and d.status == "sent"
+    url, headers, payload = calls[0]
+    assert "api.resend.com" in url
+    assert headers["Authorization"] == "Bearer re_test"
+    assert payload["to"] == ["to@co.kr"]
 
 
 def test_email_failure_retry_then_failed(db, monkeypatch):
@@ -176,6 +201,6 @@ def test_ops_status_admin_only(db, client, owner_headers, viewer_headers):
     r = client.get("/api/ops/status", headers=owner_headers)
     assert r.status_code == 200
     body = r.json()
-    assert "deliveries" in body and "smtp_configured" in body["deliveries"]
-    assert body["deliveries"]["smtp_configured"] is False
+    assert "deliveries" in body and "email_configured" in body["deliveries"]
+    assert body["deliveries"]["email_configured"] is False
     assert "collectors" in body and "llm_month" in body
