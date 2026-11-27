@@ -227,10 +227,21 @@ def create_invite(body: InviteCreate, actor: User = Depends(require_admin),
         expires_at=datetime.utcnow() + timedelta(days=INVITE_TTL_DAYS))
     db.add(inv)
     audit(db, actor, "INVITE_CREATE", "invite", inv.id or "", f"{email} → {body.role}")
+    # 초대 안내 이메일을 발송 큐에 적재 — SMTP 설정 시 자동 발송, 미설정이면
+    # '발송 대기'로 남아 설정 후 자동 발송된다.
+    from ..services.delivery_service import enqueue_delivery
+    company_name = actor.company.name if actor.company else ""
+    enqueue_delivery(
+        db, actor.company_id, "email", email,
+        f"[dayribbon] {company_name} 워크스페이스 초대",
+        f"{actor.name}님이 {company_name} 워크스페이스에 초대했습니다.\n\n"
+        f"역할: {body.role}\n초대 토큰: {token}\n\n"
+        f"서비스에 가입한 뒤 '초대 수락'에 이 토큰을 입력하면 합류됩니다. "
+        f"토큰은 {INVITE_TTL_DAYS}일간 유효합니다.")
     db.commit()
-    # 이메일 발송 모듈 미연동 — 초대 토큰을 응답에 포함(연동 시 제거)
+    # SMTP 미설정 대비 — 초대 토큰을 응답에도 포함(실발송 확인 후 제거 검토)
     return {"invite": invite_dict(inv), "invite_token": token,
-            "note": "이메일 발송 모듈 미연동 상태로, 초대 토큰을 응답에 포함합니다."}
+            "note": "초대 안내가 발송 큐에 등록되었습니다. SMTP 미설정 시 대기 상태로 남습니다."}
 
 
 @company_router.get("/invites")

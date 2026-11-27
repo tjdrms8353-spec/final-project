@@ -133,6 +133,43 @@ def test_deliveries_api(db, client, owner_headers):
     assert items[0]["address"] == "ops@test.com"
 
 
+def test_invite_queues_email(db, client, owner_headers):
+    """초대 생성 시 안내 이메일이 발송 큐에 적재된다."""
+    r = client.post("/api/invites", headers=owner_headers,
+                    json={"email": "newbie@test.com", "role": "MEMBER"})
+    assert r.status_code == 200
+    d = db.query(NotificationDelivery).filter_by(
+        channel="email", address="newbie@test.com").one()
+    assert d.status == "pending" and "초대" in d.title
+    assert d.company_id is not None   # 초대는 기업 소속 발송
+
+
+def test_password_reset_queues_email(db, client):
+    """재설정 요청 시 이메일이 큐에 적재 — 기업 미소속 계정도 NULL로 가능."""
+    client.post("/api/auth/register",
+                json={"email": "resetme@test.com", "password": "password123", "name": "R"})
+    r = client.post("/api/auth/password-reset/request",
+                    json={"email": "resetme@test.com"})
+    assert r.status_code == 200
+    d = db.query(NotificationDelivery).filter_by(address="resetme@test.com").one()
+    assert d.company_id is None and "재설정" in d.title
+
+
+def test_ops_test_delivery(client, owner_headers, viewer_headers):
+    r = client.post("/api/ops/test-delivery", headers=owner_headers,
+                    json={"channel": "email", "address": "ops@test.com"})
+    assert r.status_code == 200
+    assert r.json()["status"] == "pending"     # SMTP 미설정 → 대기
+    # 잘못된 채널 거부
+    r = client.post("/api/ops/test-delivery", headers=owner_headers,
+                    json={"channel": "sms", "address": "01012345678"})
+    assert r.status_code == 422
+    # 관리자 아니면 403
+    r = client.post("/api/ops/test-delivery", headers=viewer_headers,
+                    json={"channel": "email", "address": "ops@test.com"})
+    assert r.status_code == 403
+
+
 def test_ops_status_admin_only(db, client, owner_headers, viewer_headers):
     r = client.get("/api/ops/status", headers=viewer_headers)
     assert r.status_code == 403

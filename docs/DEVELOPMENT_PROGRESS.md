@@ -306,7 +306,7 @@
 - GDELT 저장 경로 실수집 재확인 — 공급처 레이트리밋 해소 후
 
 ### 다음 단계
-- 단계 D(발송·운영) 진행 중 — 발송 큐·어댑터·운영 상태 API·CI 완료, 실계정 발송·운영 대시보드 UI 대기
+- 단계 D(발송·운영) — 발송 큐·어댑터·운영 상태 API/UI·CI·초대/재설정 메일 큐 연동·테스트 발송 완료. 남은 것: SMTP/카카오 실계정(Render env 설정 시 pending 큐 자동 소화)
 
 ---
 
@@ -354,4 +354,9 @@
 - 운영 데모 워크스페이스: TiDB에 `(데모) 한빛세미텍` 시드 — 체험 계정 4개(owner/admin/member/viewer@dayribbon.demo), 24개월 데이터. README에 계정 안내
 - 운영 상태 화면: `Ops.jsx` — 발송 큐·스케줄러·수집기·LLM 사용량 카드 + 발송 이력 테이블. 관리자 전용 네비(OWNER/ADMIN)
 - 사업자 유형 분류: `companies.business_type` (corporation|sole_proprietor) — 온보딩「새 기업 등록」폼 + 기업 설정에서 선택/수정, Literal 검증. 마이그레이션 `b7d2e5a1f903` (기존 기업 corporation 기본값)
-- 테스트 103/103 통과, 프론트 빌드 통과
+- TiDB 좀비 트랜잭션 사건: 유휴 트랜잭션이 `audit_logs` 락을 점유해 로그인 500(락 대기 타임아웃 1205). `KILL TIDB`로 해제 + `tidb_idle_transaction_timeout=300` 전역 설정으로 재발 방지
+- 초대·비밀번호 재설정 이메일 발송 큐 연동: `create_invite`/`password_reset_request`가 `enqueue_delivery` 호출 — 큐 발송으로 전환됐으나 SMTP 미설정이라 응답의 invite_token/demo_reset_token은 유지(연동 시 제거)
+- `NotificationDelivery.company_id` nullable화 — 기업 미소속 사용자(비번 재설정 등)의 발송 건 지원, 마이그레이션 `c4e9a1b7f208`
+- ops API 확장: `POST /api/ops/test-delivery`(관리자 테스트 발송 — 큐 적재 후 즉시 워커 처리로 결과 바로 확인), 수집기 상세 목록(`collectors` — 이름·마지막 성공/다음 실행/오류), 발송 집계를 사용자 기업 → 전사 범위로 확장
+- Ops.jsx 확장: 수집기 상세 테이블 + 발송 큐 카드에 테스트 발송 폼(채널·주소 입력 → 등록/발송)
+- 테스트 3건 신규(초대 큐·재설정 큐(company_id NULL)·테스트 발송) — **전체 106/106 통과**, 프론트 빌드 통과

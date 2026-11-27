@@ -16,6 +16,23 @@ export default function Ops() {
   const [deliveries, setDeliveries] = useState(null)
   const [statusFilter, setStatusFilter] = useState('')
   const [error, setError] = useState('')
+  const [testChannel, setTestChannel] = useState('email')
+  const [testAddress, setTestAddress] = useState('')
+  const [testBusy, setTestBusy] = useState(false)
+  const [testMsg, setTestMsg] = useState('')
+
+  const sendTest = async (e) => {
+    e.preventDefault()
+    setTestBusy(true); setTestMsg(''); setError('')
+    try {
+      const r = await api('/api/ops/test-delivery', {
+        method: 'POST', body: { channel: testChannel, address: testAddress } })
+      setTestMsg(`큐 등록 완료 (#${r.id}) — ${r.note}`)
+      setTestAddress('')
+      api('/api/deliveries').then(setDeliveries).catch(() => {})
+    } catch (err) { setError(err.message) }
+    finally { setTestBusy(false) }
+  }
 
   useEffect(() => {
     api('/api/ops/status').then(setOps).catch(e => setError(e.message))
@@ -60,6 +77,21 @@ export default function Ops() {
           <p className="mt-2 text-[11px] text-slate-400">
             미설정 상태에서 등록된 발송 건은 '발송 대기'로 남고, 서버 환경변수(SMTP_*/KAKAO_*) 설정 후 자동 발송됩니다.
           </p>
+          <form onSubmit={sendTest} className="mt-3 flex gap-2">
+            <select value={testChannel} onChange={e => setTestChannel(e.target.value)}
+              className="text-xs border border-slate-300 rounded-lg px-2 py-1.5">
+              <option value="email">이메일</option>
+              <option value="kakao">카카오</option>
+            </select>
+            <input value={testAddress} onChange={e => setTestAddress(e.target.value)} required
+              placeholder={testChannel === 'email' ? '테스트 이메일 주소' : '테스트 전화번호'}
+              className="flex-1 text-xs border border-slate-300 rounded-lg px-3 py-1.5" />
+            <button disabled={testBusy}
+              className="text-xs bg-slate-700 text-white rounded-lg px-3 py-1.5 hover:bg-slate-800 disabled:opacity-50">
+              {testBusy ? '등록 중…' : '테스트 발송'}
+            </button>
+          </form>
+          {testMsg && <p className="mt-1 text-[11px] text-emerald-600">{testMsg}</p>}
         </Card>
 
         <Card className="p-5">
@@ -77,21 +109,45 @@ export default function Ops() {
           </div>
         </Card>
 
-        <Card className="p-5">
-          <SectionTitle>데이터 수집기</SectionTitle>
-          <div className="text-sm text-slate-700">
-            활성 {ops.collectors.enabled} / 전체 {ops.collectors.total}
-          </div>
-          {ops.collectors.recent_errors.length > 0 ? (
-            <div className="mt-2 space-y-1">
-              <div className="text-xs font-medium text-rose-600">최근 수집 오류</div>
+        <Card className="p-5 md:col-span-2">
+          <SectionTitle>데이터 수집기 — 활성 {ops.collectors.enabled} / 전체 {ops.collectors.total}</SectionTitle>
+          {ops.collectors.list.length === 0 ? (
+            <div className="text-xs text-slate-400">수집기 상태 없음 — 첫 스케줄러 실행 후 표시됩니다</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="text-slate-400">
+                  <tr>{['수집기', '상태', '주기', '마지막 실행', '마지막 성공', '다음 실행', '오류'].map(h =>
+                    <th key={h} className="px-2 py-1 text-left font-medium whitespace-nowrap">{h}</th>)}</tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {ops.collectors.list.map(c => (
+                    <tr key={c.name}>
+                      <td className="px-2 py-1.5 font-medium text-slate-700">{c.name}</td>
+                      <td className="px-2 py-1.5">
+                        <Badge tone={c.enabled ? 'green' : 'slate'}>{c.enabled ? '활성' : '비활성'}</Badge>
+                      </td>
+                      <td className="px-2 py-1.5 text-slate-500">{Math.round(c.interval_sec / 3600 * 10) / 10}h</td>
+                      <td className="px-2 py-1.5 text-slate-500 whitespace-nowrap">{fmtDate(c.last_run_at)}</td>
+                      <td className="px-2 py-1.5 text-slate-500 whitespace-nowrap">{fmtDate(c.last_success_at)}</td>
+                      <td className="px-2 py-1.5 text-slate-500 whitespace-nowrap">{fmtDate(c.next_run_at)}</td>
+                      <td className="px-2 py-1.5 text-rose-500 max-w-[180px] truncate">{c.last_error}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {ops.collectors.recent_errors.length > 0 && (
+            <div className="mt-3 space-y-1">
+              <div className="text-xs font-medium text-rose-600">최근 수집 실패 이력</div>
               {ops.collectors.recent_errors.map((e, i) => (
                 <div key={i} className="text-[11px] text-slate-500">
                   {fmtDate(e.at)} · {e.collector} — {e.error}
                 </div>
               ))}
             </div>
-          ) : <div className="mt-2 text-xs text-slate-400">최근 수집 오류 없음</div>}
+          )}
         </Card>
 
         <Card className="p-5">

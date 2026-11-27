@@ -128,10 +128,20 @@ def password_reset_request(body: PasswordResetRequest, db: Session = Depends(get
     db.add(PasswordResetToken(
         token_hash=hash_token(token), user_id=user.id,
         expires_at=datetime.utcnow() + timedelta(hours=1)))
+    # 재설정 안내 이메일을 발송 큐에 적재 — 기업 미소속 계정도 가능(company_id NULL).
+    # SMTP 미설정이면 '발송 대기'로 남고 설정 후 자동 발송된다.
+    from ..services.delivery_service import enqueue_delivery
+    enqueue_delivery(
+        db, user.company_id, "email", user.email,
+        "[dayribbon] 비밀번호 재설정 안내",
+        "비밀번호 재설정을 요청했습니다.\n\n"
+        f"재설정 토큰: {token}\n\n"
+        "'비밀번호 찾기' 화면의 재설정 확인 단계에 이 토큰을 입력하세요. "
+        "1시간 동안 유효하며, 본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다.")
     db.commit()
-    # 실서비스에서는 이메일 발송 후 토큰 미반환 — 현재는 발송 모듈 없음을 명시
+    # SMTP 미설정 대비 — 테스트 편의로 토큰을 응답에도 포함(실발송 확인 후 제거 검토)
     return {"ok": True, "message": msg, "demo_reset_token": token,
-            "note": "이메일 발송 모듈 미연동 상태로, 테스트 편의를 위해 토큰을 응답에 포함합니다."}
+            "note": "재설정 안내가 발송 큐에 등록되었습니다. SMTP 미설정 시 대기 상태로 남습니다."}
 
 
 @auth_router.post("/password-reset/confirm")

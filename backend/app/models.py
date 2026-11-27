@@ -415,7 +415,9 @@ class NotificationDelivery(Base):
     __tablename__ = "notification_deliveries"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    # 기업 미소속 사용자의 트랜잭셔널 발송(초대·비번 재설정)은 company 없이 기록된다
+    company_id: Mapped[int | None] = mapped_column(
+        ForeignKey("companies.id"), index=True, nullable=True)
     notification_id: Mapped[int] = mapped_column(ForeignKey("notifications.id"), nullable=True, index=True)
     channel: Mapped[str] = mapped_column(String(20))           # email / kakao
     address: Mapped[str] = mapped_column(String(200))          # 이메일 주소 또는 전화번호

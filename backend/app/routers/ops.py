@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -24,8 +25,7 @@ def ops_status(user: User = Depends(require_admin), db: Session = Depends(get_db
 
     deliveries = dict(
         db.query(NotificationDelivery.status, func.count())
-        .filter(NotificationDelivery.company_id == user.company_id)
-        .group_by(NotificationDelivery.status).all())
+        .group_by(NotificationDelivery.status).all())   # 전사 범위(기업 미소속 건 포함)
 
     collectors = db.query(CollectorState).all()
     recent_failed_runs = (db.query(CollectionRun)
@@ -59,6 +59,14 @@ def ops_status(user: User = Depends(require_admin), db: Session = Depends(get_db
         "collectors": {
             "total": len(collectors),
             "enabled": sum(1 for c in collectors if c.enabled),
+            "list": [
+                {"name": c.name, "enabled": c.enabled,
+                 "interval_sec": c.interval_sec,
+                 "last_run_at": c.last_run_at.isoformat() if c.last_run_at else "",
+                 "last_success_at": c.last_success_at.isoformat() if c.last_success_at else "",
+                 "next_run_at": c.next_run_at.isoformat() if c.next_run_at else "",
+                 "last_error": (c.last_error or "")[:120]}
+                for c in collectors],
             "recent_errors": [
                 {"collector": r.collector, "at": r.started_at.isoformat(),
                  "error": (r.error or "")[:120]}
@@ -67,3 +75,25 @@ def ops_status(user: User = Depends(require_admin), db: Session = Depends(get_db
         "llm_month": {"calls": llm[0], "tokens": llm[1]},
         "analysis_jobs": jobs,
     }
+
+
+class TestDelivery(BaseModel):
+    channel: str = Field(pattern="^(email|kakao)$")
+    address: str = Field(min_length=3, max_length=200)
+
+
+@router.post("/test-delivery")
+def test_delivery(body: TestDelivery, user: User = Depends(require_admin),
+                  db: Session = Depends(get_db)):
+    """관리자 테스트 발송 — 큐에 적재 후 즉시 처리해 결과를 바로 확인한다."""
+    from ..services.delivery_service import (
+        enqueue_delivery, process_pending_deliveries)
+    d = enqueue_delivery(
+        db, user.company_id, body.channel, body.address,
+        "[dayribbon] 발송 테스트",
+        "운영 상태 화면에서 발송한 테스트 메시지입니다.")
+    db.flush()
+    process_pending_deliveries(db)   # 즉시 발송 시도
+    db.commit()
+    return {"id": d.id, "status": d.status, "last_error": d.last_error,
+            "note": "미설정 채널이면 발송 대기로 남습니다."}
