@@ -86,15 +86,35 @@ class TestDelivery(BaseModel):
 @router.post("/test-delivery")
 def test_delivery(body: TestDelivery, user: User = Depends(require_admin),
                   db: Session = Depends(get_db)):
-    """관리자 테스트 발송 — 큐에 적재 후 즉시 처리해 결과를 바로 확인한다."""
+    """관리자 테스트 발송 — 큐에 적재 후 즉시 처리해 결과를 바로 확인한다.
+
+    이메일 채널은 실제 월간 보고서 형식(요약 본문 + PDF 첨부)으로 발송해
+    실제 발송 결과물을 그대로 검증할 수 있다. 카카오는 단문 테스트를 보낸다.
+    """
     from ..services.delivery_service import (
         enqueue_delivery, process_pending_deliveries)
-    d = enqueue_delivery(
-        db, user.company_id, body.channel, body.address,
-        "발송 테스트",
-        "운영 상태 화면에서 발송한 테스트 메시지입니다.")
+    if body.channel == "email":
+        from ..services.report_service import (
+            _report_email_body, build_report_content, render_pdf)
+        from ..utils import month_range
+        period = month_range(1)[0]
+        content = build_report_content(db, user.company_id, period)
+        title = f"{content['company']['name']} {period} 월간 경영 보고서 (발송 테스트)"
+        attachment = ""
+        try:
+            attachment = render_pdf(content, 0)   # 폰트 없으면 생략
+        except Exception:
+            pass
+        d = enqueue_delivery(
+            db, user.company_id, "email", body.address,
+            title, _report_email_body(content), attachment_path=attachment)
+    else:
+        d = enqueue_delivery(
+            db, user.company_id, body.channel, body.address,
+            "발송 테스트",
+            "운영 상태 화면에서 발송한 테스트 메시지입니다.")
     db.flush()
     process_pending_deliveries(db)   # 즉시 발송 시도
     db.commit()
     return {"id": d.id, "status": d.status, "last_error": d.last_error,
-            "note": "미설정 채널이면 발송 대기로 남습니다."}
+            "note": "이메일은 실제 월간 보고서 형식으로 발송됩니다. 미설정 채널이면 발송 대기로 남습니다."}
