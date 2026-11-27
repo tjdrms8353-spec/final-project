@@ -30,9 +30,11 @@ def test_enqueue_and_skip_without_address(db):
     assert len(d) == 1 and d[0].channel == "email"
     assert d[0].status == "pending" and d[0].address == "ops@test.com"
 
-    st.email_address = ""     # 주소 없으면 skipped
+    st.email_address = ""     # 주소 비우면 OWNER/ADMIN 계정 메일로 폴백
     d2 = ds.queue_company_notifications(db, 1, "제목", "본문")
-    assert d2[0].status == "skipped" and "주소" in d2[0].last_error
+    addrs = {d.address for d in d2}
+    assert addrs and all(d.status == "pending" for d in d2)
+    assert "owner@dayribbon.demo" in addrs
 
 
 def test_channel_toggles(db):
@@ -114,6 +116,36 @@ def test_email_send_resend(db, monkeypatch):
     assert "api.resend.com" in url
     assert headers["Authorization"] == "Bearer re_test"
     assert payload["to"] == ["to@co.kr"]
+    assert "html" in payload and "제목" in payload["subject"]
+
+
+def test_weekly_summary_queues_email(db):
+    """주간 요약 생성 시 이메일 발송 건도 큐에 적재된다 (OWNER/ADMIN 폴백)."""
+    from app.models import Notification
+    from app.services.analysis_engine import weekly_summary
+    # 세션 공유 DB — 시드/이전 테스트의 주간 알림이 중복 차단을 유발하므로 제거
+    db.query(Notification).filter(Notification.ntype == "weekly").delete()
+    db.commit()
+    n = weekly_summary(db, 1)
+    assert n is not None
+    db.flush()   # SessionLocal은 autoflush=False — 조회 전 명시적 플러시 필요
+    ds = db.query(NotificationDelivery).filter(
+        NotificationDelivery.title == "주간 경영 요약").all()
+    assert ds and all(d.channel == "email" and d.address for d in ds)
+
+
+def test_monthly_report_dispatch(db):
+    """월간 보고서 자동 생성 + 이메일 큐 등록. 재호출 시 중복 생성 없음."""
+    from app.models import Report
+    from app.services.report_service import dispatch_monthly_reports
+    reps = dispatch_monthly_reports(db)
+    assert len(reps) >= 1
+    period = reps[0].period
+    assert db.query(NotificationDelivery).filter(
+        NotificationDelivery.title.like(f"%{period} 월간 경영 보고서%")).count() >= 1
+    before = db.query(Report).count()
+    assert dispatch_monthly_reports(db) == []
+    assert db.query(Report).count() == before
 
 
 def test_email_failure_retry_then_failed(db, monkeypatch):

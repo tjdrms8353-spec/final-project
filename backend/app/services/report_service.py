@@ -1,6 +1,6 @@
 """월간 경영 보고서 생성 + PDF 출력."""
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..config import DATA_DIR
 from ..models import (
     AnalysisResult, AuditLog, Company, Decision, FollowUp, FinancialMonthly,
-    MarketSeries, NewsItem, Notification, Report, RiskAlert,
+    MarketSeries, NewsItem, Notification, NotificationSetting, Report, RiskAlert,
 )
 from ..utils import company_or_common, fmt_krw, month_range, prev_month
 from .analysis_engine import compute_kpis
@@ -252,3 +252,71 @@ def render_pdf(content: dict, report_id: int) -> str:
     path = REPORT_DIR / fname
     pdf.output(str(path))
     return str(path)
+
+
+def _report_email_body(content: dict) -> str:
+    """월간 보고서 이메일 본문 — KPI·재무·알림 요약을 텍스트로 구성."""
+    k = content.get("kpi_summary") or {}
+    fin = content.get("monthly_financial") or {}
+    lines = [
+        f"{content['company']['name']} {content['period']} 월간 경영 보고서입니다.",
+        "",
+        "[경영 요약]",
+    ]
+    if k.get("revenue") is not None:
+        lines.append(
+            f"매출 {fmt_krw(k['revenue'])} / 영업이익 {fmt_krw(k.get('operating_profit') or 0)}"
+            f" / 영업이익률 {k.get('op_margin')}%")
+    if k.get("revenue_yoy") is not None:
+        lines.append(f"매출 전년동월 대비 {k['revenue_yoy']}%")
+    if fin.get("revenue_mom_pct") is not None:
+        lines.append(f"매출 전월 대비 {fin['revenue_mom_pct']}%")
+    if k.get("fx_latest"):
+        lines.append(f"기준 환율 {k['fx_latest']}")
+    if len(lines) == 3:
+        lines.append("재무 데이터가 아직 등록되지 않았습니다.")
+
+    alerts = content.get("alerts") or []
+    open_alerts = [a for a in alerts if a.get("status") != "acknowledged"]
+    lines += ["", f"[위험 알림] 미해결 {len(open_alerts)}건"]
+    lines += [f"- [{a['severity']}] {a['title']}" for a in open_alerts[:5]]
+
+    lines += [
+        "",
+        "전체 보고서는 첨부 PDF 또는 dayribbon 분기 경영 보고서 메뉴에서 확인할 수 있습니다.",
+        "",
+        content.get("disclaimer", ""),
+    ]
+    return "\n".join(lines)
+
+
+def dispatch_monthly_reports(db: Session) -> list[Report]:
+    """이전 달 월간 보고서를 자동 생성하고 이메일 발송 큐에 등록한다.
+
+    스케줄러에서 매 틱 호출 — (기업, 기간)별 자동 보고서가 이미 있으면 건너뛰어
+    중복 생성·발송되지 않는다. 알림 설정 email_enabled가 꺼진 기업은
+    보고서만 생성하고 발송하지 않는다. PDF 첨부는 폰트가 있어 생성된 경우만.
+    """
+    from .delivery_service import _email_recipients, enqueue_delivery
+
+    period = (datetime.utcnow().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+    out = []
+    for c in db.query(Company).all():
+        exists = (db.query(Report)
+                  .filter(Report.company_id == c.id, Report.period == period,
+                          Report.created_by == "시스템 자동")
+                  .first())
+        if exists:
+            continue
+        r = create_report(db, c.id, period, "시스템 자동")
+        st = (db.query(NotificationSetting)
+              .filter(NotificationSetting.company_id == c.id).first())
+        if not st or st.email_enabled:
+            for addr in _email_recipients(db, c.id):
+                enqueue_delivery(
+                    db, c.id, "email", addr,
+                    f"{c.name} {period} 월간 경영 보고서",
+                    _report_email_body(r.content),
+                    attachment_path=r.pdf_path or "")
+        out.append(r)
+    return out

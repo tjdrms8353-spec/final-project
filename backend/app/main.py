@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import (
     APP_ENV, AUTO_ANALYSIS_INTERVAL_SEC, CORS_ORIGINS,
-    DEMO_EVENTS_ENABLED, IS_PROD, SEED_DEMO,
+    DEMO_EVENTS_ENABLED, IS_PROD, SCHEDULER_ENABLED, SEED_DEMO,
 )
 from .database import Base, SessionLocal, engine
 from .models import AnalysisResult, Company
@@ -37,8 +37,9 @@ async def lifespan(app: FastAPI):
 
     stop = threading.Event()
     app.state.scheduler_stop = stop
-    t = threading.Thread(target=_scheduler_loop, args=(stop,), daemon=True)
-    t.start()
+    if SCHEDULER_ENABLED:
+        t = threading.Thread(target=_scheduler_loop, args=(stop,), daemon=True)
+        t.start()
     yield
     stop.set()
 
@@ -85,6 +86,10 @@ def _scheduler_loop(stop: threading.Event):
                         run_analysis(db, cid, trigger="schedule")
                     # 주간 요약 (7일 중복 차단은 함수 내부에서 처리)
                     weekly_summary(db, cid)
+                # 월간 보고서 자동 발행·발송 (중복 차단은 함수 내부에서 처리)
+                from .services.report_service import dispatch_monthly_reports
+                for rep in dispatch_monthly_reports(db):
+                    print(f"[report] 기업{rep.company_id} {rep.period} 월간 보고서 자동 발행")
                 db.commit()
             finally:
                 db.close()

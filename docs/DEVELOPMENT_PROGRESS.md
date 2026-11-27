@@ -360,3 +360,9 @@
 - ops API 확장: `POST /api/ops/test-delivery`(관리자 테스트 발송 — 큐 적재 후 즉시 워커 처리로 결과 바로 확인), 수집기 상세 목록(`collectors` — 이름·마지막 성공/다음 실행/오류), 발송 집계를 사용자 기업 → 전사 범위로 확장
 - Ops.jsx 확장: 수집기 상세 테이블 + 발송 큐 카드에 테스트 발송 폼(채널·주소 입력 → 등록/발송)
 - 테스트 3건 신규(초대 큐·재설정 큐(company_id NULL)·테스트 발송) — **전체 106/106 통과**, 프론트 빌드 통과
+- Render 무료 플랜 SMTP 차단 확인(아웃바운드 25/465/587, Network unreachable) → **Resend HTTPS API 어댑터 추가** — `RESEND_API_KEY` 설정 시 SMTP 우선 사용, `RESEND_FROM` 미설정 시 onboarding@resend.dev 테스트 발신자. 운영 실발송 검증 완료(테스트 메일 수신)
+- Resend 페이로드에 html 본문 추가(일부 클라이언트에서 본문 미표시 대응) + 첨부파일 지원(`attachment_path` 컬럼, Resend base64/SMTP add_attachment, 파일 없으면 본문만) — 마이그레이션 `d8f3a1c5e210`
+- 이메일 수신자 폴백: `email_address` 미설정 시 기업 OWNER/ADMIN 계정 메일로 발송
+- 주간 요약 알림 → 이메일 큐 연동; 월간 보고서 자동 발행·발송(`dispatch_monthly_reports` — 이전 달 보고서 자동 생성 + PDF 첨부 이메일, 기업·기간별 중복 차단, email_enabled off면 생성만)
+- `SCHEDULER_ENABLED=0` env 추가 — 테스트에서 스케줄러 비활성화(첫 틱이 테스트 데이터와 경쟁하던 문제 해소)
+- 테스트 3건 신규(주간 요약 큐·월간 보고서·Resend 발송) — **전체 109/109 통과**

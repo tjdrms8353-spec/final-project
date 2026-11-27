@@ -43,6 +43,8 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1
 
 # 자동 분석 주기(초). 데모에서는 짧게 설정해 동작을 확인할 수 있게 한다.
 AUTO_ANALYSIS_INTERVAL_SEC = int(os.getenv("AUTO_ANALYSIS_INTERVAL_SEC", "120"))
+# 0이면 백그라운드 스케줄러를 시작하지 않는다 (테스트·단일 워커 운영용)
+SCHEDULER_ENABLED = os.getenv("SCHEDULER_ENABLED", "1") == "1"
 
 # 운영 환경에서는 데모 데이터 시드·데모 이벤트 기본 비활성
 _seed_default = "0" if IS_PROD else "1"

@@ -423,6 +423,7 @@ class NotificationDelivery(Base):
     address: Mapped[str] = mapped_column(String(200))          # 이메일 주소 또는 전화번호
     title: Mapped[str] = mapped_column(String(300))
     message: Mapped[str] = mapped_column(Text, default="")
+    attachment_path: Mapped[str] = mapped_column(String(500), default="")  # PDF 등 첨부 파일 경로
     # pending(발송 대기·미설정 포함) / sent / failed(재시도 초과) / skipped(주소 없음)
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
     attempts: Mapped[int] = mapped_column(Integer, default=0)

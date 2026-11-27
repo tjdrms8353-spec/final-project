@@ -10,7 +10,8 @@ sys.path.insert(0, str(BACKEND_DIR))
 _tmp = tempfile.mkdtemp(prefix="dayribbon_test_")
 os.environ["DATABASE_URL"] = f"sqlite:///{_tmp}/test.db"
 os.environ["SEED_DEMO"] = "1"
-# 스케줄러가 테스트 중 즉시 돌지 않도록 큰 간격 지정
+# 스케줄러 비활성 — 첫 틱이 즉시 돌아 테스트 데이터와 경쟁하는 것을 방지
+os.environ["SCHEDULER_ENABLED"] = "0"
 os.environ["AUTO_ANALYSIS_INTERVAL_SEC"] = "86400"
 os.environ["COLLECT_INTERVAL_SEC"] = "86400"
 # 테스트 중 실제 외부 호출 차단 (수집기는 mock으로 검증)

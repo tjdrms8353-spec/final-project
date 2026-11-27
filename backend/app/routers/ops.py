@@ -91,7 +91,7 @@ def test_delivery(body: TestDelivery, user: User = Depends(require_admin),
         enqueue_delivery, process_pending_deliveries)
     d = enqueue_delivery(
         db, user.company_id, body.channel, body.address,
-        "[dayribbon] 발송 테스트",
+        "발송 테스트",
         "운영 상태 화면에서 발송한 테스트 메시지입니다.")
     db.flush()
     process_pending_deliveries(db)   # 즉시 발송 시도

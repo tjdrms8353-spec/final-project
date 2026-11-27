@@ -569,4 +569,6 @@ def weekly_summary(db: Session, company_id: int) -> Notification | None:
         f"최근 7일 신규 분석 {analyses}건, 읽지 않은 알림 {unread}건입니다. "
         "주간 경영 점검 회의에서 우선순위를 확인하세요."
     )
-    return _mk_notification(db, company_id, "weekly", "주간 경영 요약", msg)
+    n = _mk_notification(db, company_id, "weekly", "주간 경영 요약", msg)
+    _queue_email_if_enabled(db, company_id, "주간 경영 요약", msg)
+    return n
